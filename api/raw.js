@@ -1,16 +1,11 @@
-// Vercel Serverless Function - Serves Unmodified Script Directly to Roblox Executors
-
-// In-memory fallback map (Persists across warm serverless invocations)
 globalThis.vaultStore = globalThis.vaultStore || new Map();
 
 export default function handler(req, res) {
-    const { id, code } = req.query;
+    const { id } = req.query;
 
-    // CORS Headers for Roblox HttpGet execution
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
 
-    // Handle POST request to store script in server memory
     if (req.method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk);
@@ -39,12 +34,10 @@ export default function handler(req, res) {
                      req.query.format === 'raw';
 
     if (isRoblox) {
-        // Return exact raw, unmodified script to executor
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         const scriptCode = globalThis.vaultStore.get(id) || `--[ VoidedX Vault Payload ]--\nprint("VoidedX Vault Loaded: ${id}")`;
         return res.status(200).send(scriptCode);
     } else {
-        // Redirect browser visitors away to the SECURED page
         return res.redirect(`/vault?id=${id}`);
     }
 }
