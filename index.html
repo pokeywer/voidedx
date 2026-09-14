@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoidedX // Script Vault</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VoidedX // Script Vault & Protection</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -14,23 +14,38 @@
                 <i class="fa-solid fa-terminal brand-icon"></i>
                 <div class="brand-titles">
                     <span class="brand-name">VOIDEDX</span>
-                    <span class="brand-tag">protect ur scripts!</span>
+                    <span class="brand-tag">FIREBASE ANTI-SKID VAULT</span>
                 </div>
+            </div>
+            <div class="nav-user">
+                <span id="user-display" class="user-badge"><i class="fa-solid fa-user"></i> Guest</span>
+                <button id="auth-btn" class="btn-accent"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
             </div>
         </header>
 
         <main class="workspace">
             <aside class="sidebar">
                 <div class="panel-group">
-                    <label class="panel-label" for="script-title">VAULT TITLE</label>
+                    <label class="panel-label">VAULT TITLE</label>
                     <input type="text" id="script-title" class="input-field" placeholder="Hub / Script Name">
                 </div>
 
                 <div class="panel-group">
-                    <label class="panel-label">NUH UH</label>
-                    <div class="info-box">
-                        <i class="fa-solid fa-cloud text-cyan"></i>
-                        <p>Powered by a cloud. Scripts never wipe, never expire, and loadstrings stay permanent:3</p>
+                    <label class="panel-label">MY VAULTS (CLICK TO LOAD / EDIT)</label>
+                    <div id="vault-list" class="vault-list">
+                        <div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>
+                    </div>
+                </div>
+
+                <div class="panel-group">
+                    <label class="panel-label">KEY SYSTEM OPTIONS</label>
+                    <div class="toggle-list">
+                        <label class="toggle-row">
+                            <span>Require Key to Execute</span>
+                            <input type="checkbox" id="chk-key-system">
+                            <span class="switch"></span>
+                        </label>
+                        <input type="text" id="script-key" class="input-field hidden" placeholder="Enter Custom Key (e.g. VX-9941)">
                     </div>
                 </div>
 
@@ -38,32 +53,37 @@
                     <label class="panel-label">VAULT PROTECTION</label>
                     <div class="toggle-list">
                         <label class="toggle-row">
-                            <span>PROTECTION</span>
+                            <span>Hide Code from Browser</span>
                             <input type="checkbox" checked disabled>
                             <span class="switch"></span>
                         </label>
                         <label class="toggle-row">
-                            <span>BACKUP DOWNLOAD</span>
+                            <span>Auto .txt Local Backup</span>
                             <input type="checkbox" id="chk-backup" checked>
                             <span class="switch"></span>
                         </label>
                     </div>
                 </div>
 
+                <input type="hidden" id="active-vault-id">
                 <button id="lock-vault-btn" class="btn-primary">
-                    <i class="fa-solid fa-lock"></i> Save Vault
+                    <i class="fa-solid fa-lock"></i> SAVE / UPDATE VAULT
+                </button>
+                <button id="delete-vault-btn" class="btn-danger hidden">
+                    <i class="fa-solid fa-trash"></i> DELETE VAULT
                 </button>
             </aside>
 
             <section class="editor-stage">
                 <div class="editor-header">
-                    <span class="editor-title"><i class="fa-solid fa-code"></i> PASTE YOUR SCRIPT </span>
+                    <span class="editor-title"><i class="fa-solid fa-code"></i> PASTE YOUR SCRIPT (RAW OR OBFUSCATED)</span>
+                    <span id="editing-indicator" class="text-cyan hidden"><i class="fa-solid fa-pen"></i> Editing Existing Vault</span>
                 </div>
-                <textarea id="source-code" placeholder="-- Paste your raw Luau or already-obfuscated script here...&#10;print('VoidedX The goat')" spellcheck="false"></textarea>
+                <textarea id="source-code" placeholder="-- Paste your raw Luau or already-obfuscated script here...&#10;print('VoidedX Secure Vault Active')" spellcheck="false"></textarea>
 
                 <div id="result-overlay" class="result-panel hidden">
                     <div class="result-content">
-                        <h4><i class="fa-solid fa-circle-check text-success"></i> SAVED & PROTECTED FROM SKIDDERS BABYYY!</h4>
+                        <h4><i class="fa-solid fa-circle-check text-success"></i> VAULT SAVED TO FIREBASE!</h4>
                         <div class="url-bar">
                             <input type="text" id="ls-output" readonly>
                             <button id="copy-out-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> COPY LOADSTRING</button>
@@ -74,6 +94,26 @@
         </main>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal-overlay hidden">
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <button id="tab-login" class="auth-tab active">Log In</button>
+                <button id="tab-signup" class="auth-tab">Sign Up</button>
+            </div>
+            <div class="panel-group">
+                <label class="panel-label">EMAIL</label>
+                <input type="email" id="auth-email" class="input-field" placeholder="developer@voidedx.com">
+            </div>
+            <div class="panel-group">
+                <label class="panel-label">PASSWORD</label>
+                <input type="password" id="auth-password" class="input-field" placeholder="••••••••">
+            </div>
+            <button id="auth-submit-btn" class="btn-primary">Log In</button>
+            <button id="auth-close-btn" class="btn-accent">Cancel</button>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
 </body>
 </html>

@@ -1,89 +1,52 @@
-// Vercel Serverless Function - Firebase Firestore Backend Integration
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
-// Firebase Project Configuration keys.
-// Prefer environment variables (set these in your Vercel project settings)
-// so the keys aren't hardcoded in source control; falls back to the
-// previous literal values only if the env vars are unset.
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "voidedx-fe79f.firebaseapp.com",
-  projectId: process.env.FIREBASE_PROJECT_ID || "voidedx-fe79f",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "voidedx-fe79f.firebasestorage.app",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "784635868195",
-  appId: process.env.FIREBASE_APP_ID || "1:784635868195:web:6e879214df4238bc2aad96"
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID
 };
 
-// Initialize Firebase SDK once per lambda instance (avoids
-// "Firebase App named '[DEFAULT]' already exists" on warm invocations).
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
 export default async function handler(req, res) {
-  const { id } = req.query;
+    const { id, key } = req.query;
 
-  // Set global CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle CORS preflight options request from executors/browsers
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // 1. Save Payload to Permanent Firebase Firestore Database
-  if (req.method === 'POST') {
-    try {
-      // Safely access body parsed automatically by Vercel
-      const parsed = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-
-      if (parsed && typeof parsed.id === 'string' && typeof parsed.code === 'string' && parsed.code.length > 0) {
-        await setDoc(doc(db, "vaults", parsed.id), {
-          code: parsed.code,
-          title: parsed.title || "Untitled Vault",
-          createdAt: Date.now()
-        });
-        return res.status(200).json({ success: true, id: parsed.id });
-      }
-      
-      return res.status(400).json({ error: 'Invalid payload structural format' });
-    } catch (e) {
-      return res.status(500).json({ error: e.message });
+    if (!id) {
+        return res.status(400).send('-- Error: Missing Vault ID');
     }
-  }
 
-  // 2. Read Payload from Database
-  if (!id) {
-    return res.status(400).send('--[ VoidedX Error: Missing Vault ID ]--');
-  }
-
-  // Detect Roblox Executors vs Web Browser Viewers
-  const userAgent = (req.headers['user-agent'] || '').toLowerCase();
-  const isRoblox = userAgent.includes('roblox') || 
-                    userAgent.includes('synapse') || 
-                    userAgent.includes('executor') || 
-                    userAgent.includes('curl') || 
-                    req.query.format === 'raw';
-
-  if (isRoblox) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     try {
-      const docRef = doc(db, "vaults", id);
-      const docSnap = await getDoc(docRef);
+        const docRef = doc(db, "vaults", id);
+        const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        // Returns the exact, untouched script straight from Google Firebase
-        return res.status(200).send(docSnap.data().code);
-      } else {
-        return res.status(404).send('print("VoidedX Error: Vault ID Not Found in Database")');
-      }
+        if (!docSnap.exists()) {
+            return res.status(404).send('-- Error: Vault ID not found in VoidedX Cloud');
+        }
+
+        const vaultData = docSnap.data();
+
+        // Key verification check
+        if (vaultData.requireKey) {
+            if (!key || key !== vaultData.key) {
+                return res.status(403).send(`
+-- [VOIDEDX SECURITY ALERT]
+-- Key protection is enabled for this script.
+-- Invalid or missing key parameter.
+error("[VoidedX] Invalid Key Provided!", 2)
+                `);
+            }
+        }
+
+        // Return raw execution wrapper for Roblox Executors
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.status(200).send(vaultData.code);
     } catch (err) {
-      return res.status(500).send('print("VoidedX Error: Database Connection Failed")');
+        return res.status(500).send(`-- Error loading script: ${err.message}`);
     }
-  } else {
-    // Redirect browser inspect attempts away to the SECURED card page
-    return res.redirect(`/vault?id=${id}`);
-  }
 }
