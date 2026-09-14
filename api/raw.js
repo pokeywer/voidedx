@@ -1,25 +1,33 @@
-// Vercel Serverless Function - Serves Payload Directly to Roblox Executors
+// Vercel Serverless API - Short Clean Payload Delivery
 
-function decodePayload(str) {
-    try {
-        let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-        while (base64.length % 4) base64 += '=';
-        return decodeURIComponent(Array.from(atob(base64)).map(c => {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-    } catch (e) {
-        return null;
-    }
-}
+// In-Memory Global Memory Store (Warm Instance Cache)
+globalThis.vaultStore = globalThis.vaultStore || new Map();
 
 export default function handler(req, res) {
-    const { id, key } = req.query;
+    const { id } = req.query;
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
 
-    if (!id || !key) {
-        return res.status(400).send('--[ VoidedX Error: Invalid or Missing Vault Key ]--');
+    // Save Vault Payload
+    if (req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const parsed = JSON.parse(body);
+                if (parsed.id && parsed.code) {
+                    globalThis.vaultStore.set(parsed.id, parsed.code);
+                    return res.status(200).json({ success: true, id: parsed.id });
+                }
+            } catch (e) {}
+            return res.status(400).json({ error: 'Invalid payload' });
+        });
+        return;
+    }
+
+    if (!id) {
+        return res.status(400).send('--[ VoidedX Error: Missing Vault ID ]--');
     }
 
     const userAgent = (req.headers['user-agent'] || '').toLowerCase();
@@ -31,14 +39,14 @@ export default function handler(req, res) {
 
     if (isRoblox) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        const rawScript = decodePayload(key);
-        
-        if (!rawScript) {
-            return res.status(400).send('print("VoidedX Error: Corrupted Payload Key")');
+        const scriptCode = globalThis.vaultStore.get(id);
+
+        if (!scriptCode) {
+            return res.status(404).send('print("VoidedX Error: Vault Expired or Not Found")');
         }
 
-        // Return exact original script (e.g. print("W") or Luraph obfuscated script)
-        return res.status(200).send(rawScript);
+        // Returns your EXACT script untouched (e.g. Lance Hub v6.0)
+        return res.status(200).send(scriptCode);
     } else {
         // Redirect browser visitors away to the SECURED page
         return res.redirect(`/vault?id=${id}`);

@@ -9,25 +9,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn = document.getElementById('copy-out-btn');
     const chkBackup = document.getElementById('chk-backup');
 
-    // Helper: Base64 URL Safe Encoder
-    function encodePayload(str) {
-        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
-            return String.fromCharCode('0x' + p1);
-        })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    lockBtn.addEventListener('click', () => {
+    lockBtn.addEventListener('click', async () => {
         const code = sourceCode.value;
         if (!code.trim()) return alert('Please paste your script before locking.');
 
         const vaultId = 'vx_' + Math.random().toString(36).substring(2, 10);
         const title = scriptTitle.value.trim() || 'Untitled Vault';
-        
-        // Encode script payload into key parameter (Stateless & Permanent)
-        const encodedKey = encodePayload(code);
-        const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}&key=${encodedKey}`;
 
-        // GUARANTEED UNIVERSAL ROBLOX LOADSTRING SYNTAX
+        // Upload payload to server storage (Keeps loadstring URL ultra-short)
+        try {
+            await fetch('/api/raw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: vaultId, code: code })
+            });
+        } catch (err) {
+            alert('Failed to connect to Vault server. Try again.');
+            return;
+        }
+
+        const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}`;
+
+        // SHORT & CLEAN LOADSTRING
         const loadstringCmd = `loadstring(game:HttpGet("${rawUrl}"))()`;
 
         lsOutput.value = loadstringCmd;
