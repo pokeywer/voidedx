@@ -3,58 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VoidedX // Zero-Knowledge Vault</title>
+    <title>VoidedX // Script Vault</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div id="security-lockout" class="lockout-screen hidden">
-        <div class="lockout-modal">
-            <i class="fa-solid fa-shield-cat lockout-icon"></i>
-            <h2>SECURITY LOCKOUT TRIGGERED</h2>
-            <p>DevTools or inspect attempt detected. Access denied to protect vault memory.</p>
-            <button onclick="window.location.reload()" class="btn-danger">RELOAD VAULT</button>
-        </div>
-    </div>
-
     <div class="shell">
         <header class="top-nav">
             <div class="brand-unit">
                 <i class="fa-solid fa-terminal brand-icon"></i>
                 <div class="brand-titles">
                     <span class="brand-name">VOIDEDX</span>
-                    <span class="brand-tag">SECURE VAULT v7.0</span>
+                    <span class="brand-tag">ANTI-SKID VAULT v8.0</span>
                 </div>
-            </div>
-
-            <div class="nav-controls">
-                <div class="encryption-badge">
-                    <span class="pulse-dot"></span> AES-256-GCM
-                </div>
-                <button id="mobile-menu-btn" class="icon-btn mobile-only" aria-label="Toggle Menu">
-                    <i class="fa-solid fa-sliders"></i>
-                </button>
             </div>
         </header>
 
-        <div class="workspace">
-            <aside class="sidebar" id="sidebar">
-                <div class="sidebar-header mobile-only">
-                    <span>CONFIGURATIONS</span>
-                    <button id="close-sidebar-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+        <main class="workspace">
+            <aside class="sidebar">
+                <div class="panel-group">
+                    <label class="panel-label">VAULT TITLE</label>
+                    <input type="text" id="script-title" class="input-field" placeholder="Hub Name">
                 </div>
 
                 <div class="panel-group">
-                    <label class="panel-label">VAULT METADATA</label>
-                    <input type="text" id="script-title" class="input-field" placeholder="Vault Title (e.g. Combat Engine)" autocomplete="off">
-                </div>
-
-                <div class="panel-group">
-                    <label class="panel-label">SECURITY TOGGLES</label>
+                    <label class="panel-label">ANTI-SKID MODULES</label>
                     <div class="toggle-list">
                         <label class="toggle-row">
-                            <span>Client AES-256 Encryption</span>
-                            <input type="checkbox" id="chk-aes" checked disabled>
+                            <span>Hide Source from Browser</span>
+                            <input type="checkbox" checked disabled>
+                            <span class="switch"></span>
+                        </label>
+                        <label class="toggle-row">
+                            <span>Anti-Spy & Anti-Hook</span>
+                            <input type="checkbox" id="chk-antispy" checked>
                             <span class="switch"></span>
                         </label>
                         <label class="toggle-row">
@@ -62,57 +44,31 @@
                             <input type="checkbox" id="chk-backup" checked>
                             <span class="switch"></span>
                         </label>
-                        <label class="toggle-row">
-                            <span>Anti-Inspect Defender</span>
-                            <input type="checkbox" id="chk-anti-inspect" checked>
-                            <span class="switch"></span>
-                        </label>
-                        <label class="toggle-row">
-                            <span>Strip Comments</span>
-                            <input type="checkbox" id="chk-strip-comments" checked>
-                            <span class="switch"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="panel-group">
-                    <label class="panel-label">LOCKED WATERMARK</label>
-                    <div class="locked-field">
-                        <input type="text" class="input-field" value="--[[ Encrypted by VoidedX Vault ]]" readonly disabled>
-                        <i class="fa-solid fa-lock text-muted"></i>
                     </div>
                 </div>
 
                 <button id="lock-vault-btn" class="btn-primary">
-                    <i class="fa-solid fa-vault"></i> LOCK & SAVE VAULT
+                    <i class="fa-solid fa-lock"></i> LOCK & GENERATE LOADSTRING
                 </button>
             </aside>
 
-            <main class="editor-stage">
+            <section class="editor-stage">
                 <div class="editor-header">
-                    <span class="editor-title"><i class="fa-solid fa-code"></i> LUAU SOURCE CODE</span>
-                    <button id="clear-btn" class="text-btn"><i class="fa-solid fa-trash-can"></i> CLEAR</button>
+                    <span class="editor-title"><i class="fa-solid fa-code"></i> RAW LUAU SOURCE</span>
                 </div>
-
-                <textarea id="source-code" placeholder="-- Paste Luau script here...&#10;print('Protected by VoidedX Vault')" spellcheck="false"></textarea>
+                <textarea id="source-code" placeholder="-- Paste Luau code here...&#10;print('Hello World')" spellcheck="false"></textarea>
 
                 <div id="result-overlay" class="result-panel hidden">
                     <div class="result-content">
-                        <div class="result-status">
-                            <i class="fa-solid fa-circle-check text-success"></i>
-                            <div>
-                                <h4>VAULT LOCKED SUCCESSFULLY</h4>
-                                <p>Source encrypted. Local backup downloaded to your device.</p>
-                            </div>
-                        </div>
+                        <h4><i class="fa-solid fa-circle-check text-success"></i> VAULT CREATED & HIDDEN FROM WEBSITE</h4>
                         <div class="url-bar">
-                            <input type="text" id="vault-url-output" readonly>
-                            <button id="copy-url-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> COPY LINK</button>
+                            <input type="text" id="ls-output" readonly>
+                            <button id="copy-out-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> COPY LOADSTRING</button>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </section>
+        </main>
     </div>
 
     <script src="script.js"></script>

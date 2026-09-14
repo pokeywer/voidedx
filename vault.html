@@ -3,64 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VoidedX // Decrypting...</title>
+    <title>VoidedX // SECURED</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div id="security-lockout" class="lockout-screen hidden">
-        <div class="lockout-modal">
-            <i class="fa-solid fa-shield-cat lockout-icon"></i>
-            <h2>SECURITY LOCKOUT TRIGGERED</h2>
-            <p>Inspect attempt blocked.</p>
-            <button onclick="window.location.reload()" class="btn-danger">RELOAD</button>
+    <div class="shell flex-center">
+        <div class="secured-card">
+            <div class="shield-badge">
+                <i class="fa-solid fa-shield-halved text-cyan"></i>
+            </div>
+            <h2>SECURED!</h2>
+            <p>This script vault is encrypted and protected by <strong>VoidedX Engine</strong>.</p>
+            <div class="protection-tags">
+                <span><i class="fa-solid fa-lock"></i> Anti-Skid</span>
+                <span><i class="fa-solid fa-user-secret"></i> Anti-Spy</span>
+                <span><i class="fa-solid fa-bug-slash"></i> Anti-Decompile</span>
+            </div>
+            <div class="loadstring-box">
+                <label>Roblox Executor Loadstring:</label>
+                <div class="copy-input">
+                    <input type="text" id="loadstring-input" readonly>
+                    <button id="copy-ls-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> Copy</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="shell">
-        <header class="top-nav">
-            <div class="brand-unit">
-                <i class="fa-solid fa-terminal brand-icon"></i>
-                <div class="brand-titles">
-                    <span class="brand-name">VOIDEDX</span>
-                    <span class="brand-tag" id="vault-status-tag">DECRYPTING...</span>
-                </div>
-            </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id') || 'vx_protected';
+            const loadstringInput = document.getElementById('loadstring-input');
+            const copyBtn = document.getElementById('copy-ls-btn');
 
-            <a href="index.html" class="btn-secondary"><i class="fa-solid fa-plus"></i> NEW VAULT</a>
-        </header>
+            const rawUrl = `${window.location.origin}/api/raw?id=${id}`;
+            loadstringInput.value = `loadstring(game:HttpGet("${rawUrl}"))()`;
 
-        <main class="viewer-stage">
-            <div id="loading-box" class="message-card">
-                <i class="fa-solid fa-compass-drafting fa-spin status-spinner"></i>
-                <h3>DECRYPTING ZERO-KNOWLEDGE PAYLOAD</h3>
-                <p>Reading hash key fragment from URL...</p>
-            </div>
-
-            <div id="error-box" class="message-card hidden">
-                <i class="fa-solid fa-lock-open text-danger status-spinner"></i>
-                <h3 class="text-danger">ACCESS DENIED / VAULT NOT FOUND</h3>
-                <p>Invalid key, broken URL hash fragment, or vault missing from local memory.</p>
-            </div>
-
-            <div id="decrypted-box" class="vault-viewer hidden">
-                <div class="viewer-header">
-                    <div class="viewer-info">
-                        <h3 id="display-title">Untitled Vault</h3>
-                        <span id="display-id" class="text-muted">ID: ---</span>
-                    </div>
-
-                    <div class="viewer-actions">
-                        <button id="copy-code-btn" class="btn-secondary"><i class="fa-solid fa-copy"></i> COPY RAW</button>
-                        <button id="save-txt-btn" class="btn-secondary"><i class="fa-solid fa-download"></i> SAVE .TXT</button>
-                    </div>
-                </div>
-
-                <textarea id="decrypted-code" readonly spellcheck="false"></textarea>
-            </div>
-        </main>
-    </div>
-
-    <script src="script.js"></script>
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(loadstringInput.value);
+                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                setTimeout(() => copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy', 2000);
+            });
+        });
+    </script>
 </body>
 </html>
