@@ -40,9 +40,9 @@ VOIDEDX ANTI-SKID VAULT BACKUP
 Title      : ${title}
 Vault ID   : ${vaultId}
 Loadstring : ${loadstringCmd}
-==================================================
-ORIGINAL SCRIPT (UNTOUCHED):
-==================================================
+============================================================================
+ORIGINAL SCRIPT (Thanks for using the website. i love u<3 no homo tho):
+============================================================================
 
 ${code}`;
 
