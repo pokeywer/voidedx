@@ -30,6 +30,8 @@ body { background: var(--bg-base); color: var(--text-primary); min-height: 100vh
 .panel-label { font-size: 10px; font-weight: 800; color: var(--text-muted); letter-spacing: 0.8px; }
 .input-field { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px; border-radius: 6px; font-size: 13px; outline: none; }
 
+.info-box { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; gap: 10px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
 .toggle-list { display: flex; flex-direction: column; gap: 8px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; }
 .toggle-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
 .toggle-row input { display: none; }

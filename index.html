@@ -14,7 +14,7 @@
                 <i class="fa-solid fa-terminal brand-icon"></i>
                 <div class="brand-titles">
                     <span class="brand-name">VOIDEDX</span>
-                    <span class="brand-tag">ANTI-SKID VAULT v8.0</span>
+                    <span class="brand-tag">ANTI-SKID HTTP VAULT</span>
                 </div>
             </div>
         </header>
@@ -23,20 +23,23 @@
             <aside class="sidebar">
                 <div class="panel-group">
                     <label class="panel-label">VAULT TITLE</label>
-                    <input type="text" id="script-title" class="input-field" placeholder="Hub Name">
+                    <input type="text" id="script-title" class="input-field" placeholder="Hub / Script Name">
                 </div>
 
                 <div class="panel-group">
-                    <label class="panel-label">ANTI-SKID MODULES</label>
+                    <label class="panel-label">SECURITY GUARANTEE</label>
+                    <div class="info-box">
+                        <i class="fa-solid fa-shield-halved text-cyan"></i>
+                        <p>No double-obfuscation. Original code syntax is preserved 100% so Luraph, MoonSec, and raw scripts run without syntax corruption.</p>
+                    </div>
+                </div>
+
+                <div class="panel-group">
+                    <label class="panel-label">VAULT PROTECTION</label>
                     <div class="toggle-list">
                         <label class="toggle-row">
-                            <span>Hide Source from Browser</span>
+                            <span>Hide Code from Browser</span>
                             <input type="checkbox" checked disabled>
-                            <span class="switch"></span>
-                        </label>
-                        <label class="toggle-row">
-                            <span>Anti-Spy & Anti-Hook</span>
-                            <input type="checkbox" id="chk-antispy" checked>
                             <span class="switch"></span>
                         </label>
                         <label class="toggle-row">
@@ -54,13 +57,13 @@
 
             <section class="editor-stage">
                 <div class="editor-header">
-                    <span class="editor-title"><i class="fa-solid fa-code"></i> RAW LUAU SOURCE</span>
+                    <span class="editor-title"><i class="fa-solid fa-code"></i> PASTE YOUR SCRIPT (RAW OR OBFUSCATED)</span>
                 </div>
-                <textarea id="source-code" placeholder="-- Paste Luau code here...&#10;print('Hello World')" spellcheck="false"></textarea>
+                <textarea id="source-code" placeholder="-- Paste your raw Luau or already-obfuscated script here...&#10;print('VoidedX Secure Vault Active')" spellcheck="false"></textarea>
 
                 <div id="result-overlay" class="result-panel hidden">
                     <div class="result-content">
-                        <h4><i class="fa-solid fa-circle-check text-success"></i> VAULT CREATED & HIDDEN FROM WEBSITE</h4>
+                        <h4><i class="fa-solid fa-circle-check text-success"></i> VAULT CREATED & PROTECTED FROM BROWSERS</h4>
                         <div class="url-bar">
                             <input type="text" id="ls-output" readonly>
                             <button id="copy-out-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> COPY LOADSTRING</button>
