@@ -7,13 +7,12 @@ import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 // so the keys aren't hardcoded in source control; falls back to the
 // previous literal values only if the env vars are unset.
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyAS_hzyKR2kxyeuieB1zOoJ9RC_1WDUEaw",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "voidedx-32039.firebaseapp.com",
-  databaseURL: process.env.FIREBASE_DATABASE_URL || "https://voidedx-32039-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: process.env.FIREBASE_PROJECT_ID || "voidedx-32039",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "voidedx-32039.firebasestorage.app",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "1034832539790",
-  appId: process.env.FIREBASE_APP_ID || "1:1034832539790:web:fd87641edbbd75d1e4d9df"
+  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "voidedx-fe79f.firebaseapp.com",
+  projectId: process.env.FIREBASE_PROJECT_ID || "voidedx-fe79f",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "voidedx-fe79f.firebasestorage.app",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "784635868195",
+  appId: process.env.FIREBASE_APP_ID || "1:784635868195:web:6e879214df4238bc2aad96"
 };
 
 // Initialize Firebase SDK once per lambda instance (avoids
