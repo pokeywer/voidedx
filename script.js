@@ -9,28 +9,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn = document.getElementById('copy-out-btn');
     const chkBackup = document.getElementById('chk-backup');
 
-    lockBtn.addEventListener('click', async () => {
+    // LZ-String / Base64 Safe Compressor
+    function compressScript(src) {
+        return btoa(encodeURIComponent(src).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+            return String.fromCharCode('0x' + p1);
+        })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    lockBtn.addEventListener('click', () => {
         const code = sourceCode.value;
         if (!code.trim()) return alert('Please paste your script before locking.');
 
         const vaultId = 'vx_' + Math.random().toString(36).substring(2, 10);
         const title = scriptTitle.value.trim() || 'Untitled Vault';
 
-        // Upload payload to server storage (Keeps loadstring URL ultra-short)
-        try {
-            await fetch('/api/raw', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: vaultId, code: code })
-            });
-        } catch (err) {
-            alert('Failed to connect to Vault server. Try again.');
-            return;
-        }
+        // Compress source directly into parameter key
+        const compressedKey = compressScript(code);
+        const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}&data=${compressedKey}`;
 
-        const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}`;
-
-        // SHORT & CLEAN LOADSTRING
+        // PERMANENT, NON-EXPIRING LOADSTRING
         const loadstringCmd = `loadstring(game:HttpGet("${rawUrl}"))()`;
 
         lsOutput.value = loadstringCmd;
