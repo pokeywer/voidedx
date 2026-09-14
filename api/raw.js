@@ -1,20 +1,24 @@
 // Vercel Serverless Function - Firebase Firestore Backend Integration
-import { initializeApp } from 'https://gstatic.com';
-import { getFirestore, doc, setDoc, getDoc } from 'https://gstatic.com';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
-// Your verified Firebase Project Configuration keys
+// Firebase Project Configuration keys.
+// Prefer environment variables (set these in your Vercel project settings)
+// so the keys aren't hardcoded in source control; falls back to the
+// previous literal values only if the env vars are unset.
 const firebaseConfig = {
-  apiKey: "AIzaSyAS_hzyKR2kxyeuieB1zOoJ9RC_1WDUEaw",
-  authDomain: "voidedx-32039.firebaseapp.com",
-  databaseURL: "https://voidedx-32039-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "voidedx-32039",
-  storageBucket: "voidedx-32039.firebasestorage.app",
-  messagingSenderId: "1034832539790",
-  appId: "1:1034832539790:web:fd87641edbbd75d1e4d9df"
+  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyAS_hzyKR2kxyeuieB1zOoJ9RC_1WDUEaw",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "voidedx-32039.firebaseapp.com",
+  databaseURL: process.env.FIREBASE_DATABASE_URL || "https://voidedx-32039-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: process.env.FIREBASE_PROJECT_ID || "voidedx-32039",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "voidedx-32039.firebasestorage.app",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "1034832539790",
+  appId: process.env.FIREBASE_APP_ID || "1:1034832539790:web:fd87641edbbd75d1e4d9df"
 };
 
-// Initialize Firebase SDK
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase SDK once per lambda instance (avoids
+// "Firebase App named '[DEFAULT]' already exists" on warm invocations).
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 export default async function handler(req, res) {
@@ -36,7 +40,7 @@ export default async function handler(req, res) {
       // Safely access body parsed automatically by Vercel
       const parsed = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-      if (parsed && parsed.id && parsed.code) {
+      if (parsed && typeof parsed.id === 'string' && typeof parsed.code === 'string' && parsed.code.length > 0) {
         await setDoc(doc(db, "vaults", parsed.id), {
           code: parsed.code,
           title: parsed.title || "Untitled Vault",
