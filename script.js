@@ -42,13 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (chkBackup && chkBackup.checked) {
             const backupTxt = 
 `==================================================
-VOIDEDX ANTI-SKID VAULT BACKUP (FIREBASE PROTECTED)
+VOIDED <X> VAULT
 ==================================================
 Title      : ${title}
 Vault ID   : ${vaultId}
 Loadstring : ${loadstringCmd}
 ==================================================
-ORIGINAL SCRIPT (UNTOUCHED):
+SCRIPT (UNTOUCHED):
 ==================================================
 
 ${code}`;
