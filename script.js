@@ -145,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteBtn = document.getElementById('delete-vault-btn');
     const sourceCode = document.getElementById('source-code');
     const codeError = document.getElementById('code-error');
+    const lineNumbersEl = document.getElementById('line-numbers');
     const scriptTitle = document.getElementById('script-title');
     const resultOverlay = document.getElementById('result-overlay');
     const lsOutput = document.getElementById('ls-output');
@@ -368,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeVaultId.value = id;
         scriptTitle.value = data.title || '';
         sourceCode.value = data.code || '';
+        updateLineNumbers();
         clearFieldError(sourceCode, codeError);
         chkKeySystem.checked = !!data.requireKey;
         scriptKey.value = data.key || '';
@@ -388,6 +390,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------- Lock / Save Vault ----------------
+
+    // ---------------- Line numbers gutter ----------------
+
+    function updateLineNumbers() {
+        const lineCount = sourceCode.value.split('\n').length;
+        let out = '';
+        for (let i = 1; i <= lineCount; i++) out += i + (i < lineCount ? '\n' : '');
+        lineNumbersEl.textContent = out || '1';
+    }
+
+    sourceCode.addEventListener('input', updateLineNumbers);
+    sourceCode.addEventListener('scroll', () => {
+        lineNumbersEl.scrollTop = sourceCode.scrollTop;
+    });
+    updateLineNumbers();
 
     sourceCode.addEventListener('input', () => clearFieldError(sourceCode, codeError));
 
@@ -506,6 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activeVaultId.value = '';
             scriptTitle.value = '';
             sourceCode.value = '';
+            updateLineNumbers();
             scriptKey.value = '';
             chkKeySystem.checked = false;
             scriptKey.classList.add('hidden');

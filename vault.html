@@ -8,56 +8,75 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="shell flex-center">
-
-        <!-- Loading -->
-        <div id="loading-state" class="secured-card">
-            <div class="shield-badge"><i class="fa-solid fa-spinner fa-spin text-cyan"></i></div>
-            <h2>Checking vault…</h2>
-            <p>Verifying this link against VoidedX Cloud.</p>
+    <div class="shell">
+        <div class="promo-banner">
+            <i class="fa-solid fa-rocket promo-icon"></i>
+            <span><strong>VoidedX Script Vault</strong> — Fast, Free & Secure Roblox Script Hosting & Key System! Share your scripts safely.</span>
+            <a href="/" class="btn-promo"><i class="fa-solid fa-plus"></i> Create a Vault</a>
         </div>
+        <header class="top-nav">
+            <a href="/" class="brand-unit brand-unit-link">
+                <i class="fa-solid fa-terminal brand-icon"></i>
+                <div class="brand-titles">
+                    <span class="brand-name">VOIDEDX</span>
+                    <span class="brand-tag">FREE</span>
+                </div>
+            </a>
+        </header>
 
-        <!-- Not found -->
-        <div id="error-state" class="secured-card hidden">
-            <div class="shield-badge"><i class="fa-solid fa-triangle-exclamation text-red"></i></div>
-            <h2>Vault Not Found</h2>
-            <p id="error-message">This vault ID doesn't exist or may have been deleted.</p>
-        </div>
+        <div class="flex-center">
+        <div class="vault-visitor-stack">
 
-        <!-- Key required -->
-        <div id="keyprompt-state" class="secured-card hidden">
-            <div class="shield-badge"><i class="fa-solid fa-key text-cyan"></i></div>
-            <h2>Key Required</h2>
-            <p id="keyprompt-title">This vault is protected by a key.</p>
-            <div class="panel-group">
-                <label class="panel-label">ENTER KEY</label>
-                <input type="text" id="key-input" class="input-field" placeholder="Enter access key">
-                <span class="field-error hidden" id="key-error"></span>
-            </div>
-            <button id="key-submit-btn" class="btn-primary"><i class="fa-solid fa-unlock"></i> Unlock</button>
-        </div>
-
-        <!-- Secured / verified -->
-        <div id="secured-state" class="secured-card hidden">
-            <div class="shield-badge">
-                <i class="fa-solid fa-shield-halved text-cyan"></i>
-            </div>
-            <h2>SECURED!</h2>
-            <p id="secured-title">This script is protected by <strong>VoidedX Vault</strong>.</p>
-
-            <div class="protection-tags">
-                <span><i class="fa-solid fa-eye-slash"></i> Source Hidden</span>
-                <span><i class="fa-solid fa-database"></i> Vault</span>
-                <span id="key-tag" class="hidden"><i class="fa-solid fa-key"></i> Key Verified</span>
+            <!-- Loading -->
+            <div id="loading-state" class="secured-card">
+                <div class="shield-badge"><i class="fa-solid fa-spinner fa-spin text-cyan"></i></div>
+                <h2>Checking vault…</h2>
+                <p>Verifying this link against VoidedX Cloud.</p>
             </div>
 
-            <div class="loadstring-box">
-                <label>Copy Loadstring:</label>
-                <div class="copy-input">
-                    <input type="text" id="loadstring-input" readonly>
-                    <button id="copy-ls-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> Copy</button>
+            <!-- Not found -->
+            <div id="error-state" class="secured-card hidden">
+                <div class="shield-badge"><i class="fa-solid fa-triangle-exclamation text-red"></i></div>
+                <h2>Vault Not Found</h2>
+                <p id="error-message">This vault ID doesn't exist or may have been deleted.</p>
+            </div>
+
+            <!-- Key required -->
+            <div id="keyprompt-state" class="secured-card hidden">
+                <div class="shield-badge"><i class="fa-solid fa-key text-cyan"></i></div>
+                <h2>Key Required</h2>
+                <p id="keyprompt-title">This vault is protected by a key.</p>
+                <div class="panel-group">
+                    <label class="panel-label">ENTER KEY</label>
+                    <input type="text" id="key-input" class="input-field" placeholder="Enter access key">
+                    <span class="field-error hidden" id="key-error"></span>
+                </div>
+                <button id="key-submit-btn" class="btn-primary"><i class="fa-solid fa-unlock"></i> Unlock</button>
+            </div>
+
+            <!-- Secured / verified -->
+            <div id="secured-state" class="secured-card hidden">
+                <div class="shield-badge">
+                    <i class="fa-solid fa-shield-halved text-cyan"></i>
+                </div>
+                <h2>SECURED!</h2>
+                <p id="secured-title">This script is protected by <strong>VoidedX Vault</strong>.</p>
+
+                <div class="protection-tags">
+                    <span><i class="fa-solid fa-eye-slash"></i> Source Hidden</span>
+                    <span><i class="fa-solid fa-database"></i> Vault</span>
+                    <span id="key-tag" class="hidden"><i class="fa-solid fa-key"></i> Key Verified</span>
+                </div>
+
+                <div class="loadstring-box">
+                    <label>Copy Loadstring:</label>
+                    <div class="copy-input">
+                        <input type="text" id="loadstring-input" readonly>
+                        <button id="copy-ls-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> Copy</button>
+                    </div>
                 </div>
             </div>
+        </div>
         </div>
     </div>
 

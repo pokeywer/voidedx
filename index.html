@@ -32,7 +32,7 @@
             <aside class="sidebar">
                 <div class="panel-group">
                     <label class="panel-label">VAULT TITLE</label>
-                    <input type="text" id="script-title" class="input-field" placeholder="Hub / Script Name">
+                    <input type="text" id="script-title" name="vx-vault-title" class="input-field" placeholder="Hub / Script Name" autocomplete="off" autocorrect="off" spellcheck="false">
                     <span class="field-error hidden" id="title-error"></span>
                 </div>
 
@@ -88,7 +88,10 @@
                         <span id="editing-indicator" class="text-cyan hidden"><i class="fa-solid fa-pen"></i> Editing Existing Vault</span>
                     </div>
                 </div>
-                <textarea id="source-code" placeholder="-- Paste your raw Luau or already-obfuscated script here...&#10;print('VoidedX Secure Vault Active')" spellcheck="false"></textarea>
+                <div class="code-editor-wrap">
+                    <div id="line-numbers" class="line-numbers" aria-hidden="true">1</div>
+                    <textarea id="source-code" placeholder="-- Paste your raw Luau or already-obfuscated script here...&#10;print('VoidedX Secure Vault Active')" spellcheck="false"></textarea>
+                </div>
                 <span class="field-error field-error-block hidden" id="code-error"></span>
 
                 <div id="result-overlay" class="result-panel hidden">
