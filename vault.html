@@ -36,10 +36,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const id = urlParams.get('id') || 'vx_protected';
+            const key = urlParams.get('key');
             const loadstringInput = document.getElementById('loadstring-input');
             const copyBtn = document.getElementById('copy-ls-btn');
 
-            const rawUrl = `${window.location.origin}/api/raw?id=${id}`;
+            const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
+            const rawUrl = `${window.location.origin}/api/raw?id=${id}${keyParam}`;
             loadstringInput.value = `loadstring(game:HttpGet("${rawUrl}"))()`;
 
             copyBtn.addEventListener('click', () => {

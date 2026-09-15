@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const { id, key } = req.query;
 
     if (!id) {
-        return res.status(400).send('-- Error: Missing Vault ID');
+        return res.status(400).send('-- [VoidedX Error]: Missing Vault ID parameter');
     }
 
     try {
@@ -25,28 +25,23 @@ export default async function handler(req, res) {
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
-            return res.status(404).send('-- Error: Vault ID not found in VoidedX Cloud');
+            return res.status(404).send('-- [VoidedX Error]: Vault not found or has been deleted');
         }
 
-        const vaultData = docSnap.data();
+        const data = docSnap.data();
 
-        // Key verification check
-        if (vaultData.requireKey) {
-            if (!key || key !== vaultData.key) {
-                return res.status(403).send(`
--- [VOIDEDX SECURITY ALERT]
--- Key protection is enabled for this script.
--- Invalid or missing key parameter.
-error("[VoidedX] Invalid Key Provided!", 2)
-                `);
+        // Check key system validation
+        if (data.requireKey) {
+            if (!key || key !== data.key) {
+                return res.status(401).send(`-- [VoidedX Security]: Key validation failed. Required: ?key=YOUR_KEY`);
             }
         }
 
-        // Return raw execution wrapper for Roblox Executors
-        res.setHeader('Content-Type', 'text/plain');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        return res.status(200).send(vaultData.code);
+        // Return plain text Lua script output for game:HttpGet
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.status(200).send(data.code || '');
     } catch (err) {
-        return res.status(500).send(`-- Error loading script: ${err.message}`);
+        return res.status(500).send(`-- [VoidedX Internal Error]: ${err.message}`);
     }
 }
