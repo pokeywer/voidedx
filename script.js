@@ -142,11 +142,13 @@ function customConfirm({ title, message, confirmLabel = 'Delete' }) {
 
 document.addEventListener('DOMContentLoaded', () => {
     const lockBtn = document.getElementById('lock-vault-btn');
+    const newVaultBtn = document.getElementById('new-vault-btn');
     const deleteBtn = document.getElementById('delete-vault-btn');
     const sourceCode = document.getElementById('source-code');
     const codeError = document.getElementById('code-error');
     const lineNumbersEl = document.getElementById('line-numbers');
     const scriptTitle = document.getElementById('script-title');
+    const titleError = document.getElementById('title-error');
     const resultOverlay = document.getElementById('result-overlay');
     const lsOutput = document.getElementById('ls-output');
     const copyBtn = document.getElementById('copy-out-btn');
@@ -529,6 +531,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------------- Delete Vault ----------------
 
+    function resetEditor() {
+        activeVaultId.value = '';
+        scriptTitle.value = '';
+        sourceCode.value = '';
+        updateLineNumbers();
+        scriptKey.value = '';
+        chkKeySystem.checked = false;
+        scriptKey.classList.add('hidden');
+        editingIndicator.classList.add('hidden');
+        deleteBtn.classList.add('hidden');
+        resultOverlay.classList.add('hidden');
+        if (execCountBadge) execCountBadge.classList.add('hidden');
+        clearFieldError(sourceCode, codeError);
+        clearFieldError(scriptTitle, titleError);
+    }
+
+    newVaultBtn.addEventListener('click', () => {
+        resetEditor();
+        scriptTitle.focus();
+        showToast('Ready for a new vault.', 'info', 2000);
+    });
+
     deleteBtn.addEventListener('click', async () => {
         const id = activeVaultId.value;
         if (!id) return;
@@ -546,18 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await deleteDoc(doc(db, "vaults", id));
-            activeVaultId.value = '';
-            scriptTitle.value = '';
-            sourceCode.value = '';
-            updateLineNumbers();
-            scriptKey.value = '';
-            chkKeySystem.checked = false;
-            scriptKey.classList.add('hidden');
-            editingIndicator.classList.add('hidden');
-            deleteBtn.classList.add('hidden');
-            resultOverlay.classList.add('hidden');
-            if (execCountBadge) execCountBadge.classList.add('hidden');
-            clearFieldError(sourceCode, codeError);
+            resetEditor();
             showToast('Vault deleted.', 'info');
             loadUserVaults();
         } catch (err) {

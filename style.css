@@ -184,6 +184,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 
 /* ---------- Ghost button ---------- */
 .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%; }
+.btn-new-vault { border-style: dashed; color: var(--cyan); border-color: rgba(6, 182, 212, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-new-vault:hover { background: rgba(6, 182, 212, 0.08); border-style: solid; color: var(--text-primary); border-color: var(--cyan); }
 .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-muted); }
 
 /* ---------- Field validation ---------- */
