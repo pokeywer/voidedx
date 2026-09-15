@@ -48,7 +48,7 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .nav-user { display: flex; align-items: center; gap: 12px; }
 .user-badge { font-size: 12px; color: var(--text-muted); background: var(--bg-panel); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; }
 
-.workspace { flex: 1; display: flex; flex-direction: column; }
+.workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 @media (min-width: 769px) { .workspace { flex-direction: row; } }
 
 .sidebar { width: 100%; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); padding: 16px; display: flex; flex-direction: column; gap: 16px; }
@@ -103,14 +103,14 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .btn-accent { background: var(--accent); color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .btn-danger { background: var(--red); color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
 
-.editor-stage { flex: 1; display: flex; flex-direction: column; position: relative; min-height: 400px; }
+.editor-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .editor-header { height: 40px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px; font-weight: 800; color: var(--text-muted); }
 .editor-header-right { display: flex; align-items: center; gap: 12px; }
 .exec-count-badge { background: var(--bg-panel); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; color: var(--text-primary); font-size: 10px; }
 
-textarea { flex: 1; min-width: 0; width: 100%; background: var(--bg-base); border: none; color: var(--cyan); padding: 16px; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; outline: none; resize: none; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--bg-base); border: none; color: var(--cyan); padding: 16px; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; outline: none; resize: none; white-space: pre; overflow-wrap: normal; overflow-x: auto; overflow-y: auto; }
 
-.code-editor-wrap { flex: 1; display: flex; min-height: 300px; background: var(--bg-base); overflow: hidden; }
+.code-editor-wrap { flex: 1; min-height: 0; display: flex; background: var(--bg-base); overflow: hidden; }
 .line-numbers {
     flex-shrink: 0; width: 44px; box-sizing: border-box;
     padding: 16px 8px 16px 0; text-align: right;
