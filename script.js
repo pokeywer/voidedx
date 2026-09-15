@@ -156,6 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeVaultId = document.getElementById('active-vault-id');
     const editingIndicator = document.getElementById('editing-indicator');
     const vaultListContainer = document.getElementById('vault-list');
+    const vaultListToggle = document.getElementById('vault-list-toggle');
+    const vaultListPanel = document.getElementById('vault-list-panel');
+    const vaultListCount = document.getElementById('vault-list-count');
     const execCountBadge = document.getElementById('exec-count-badge');
     const execCountNum = document.getElementById('exec-count-num');
     const promoShareBtn = document.getElementById('promo-share-btn');
@@ -166,6 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('VoidedX link copied to clipboard!', 'success', 3000);
         });
     }
+
+    // Vault list dropdown (starts expanded)
+    vaultListPanel.classList.add('expanded');
+    vaultListToggle.classList.add('expanded');
+    vaultListToggle.addEventListener('click', () => {
+        const isExpanded = vaultListPanel.classList.toggle('expanded');
+        vaultListToggle.classList.toggle('expanded', isExpanded);
+    });
 
     // Key System Toggle
     chkKeySystem.addEventListener('change', () => {
@@ -329,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
             userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
             vaultListContainer.innerHTML = '<div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>';
+            updateVaultCount(0);
         }
     });
 
@@ -341,6 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const q = query(collection(db, "vaults"), where("uid", "==", currentUser.uid));
             const snapshot = await getDocs(q);
             vaultListContainer.innerHTML = '';
+            updateVaultCount(snapshot.size);
             if (snapshot.empty) {
                 vaultListContainer.innerHTML = '<div class="info-box"><p>No vaults found. Create one!</p></div>';
                 return;
@@ -350,13 +363,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 const div = document.createElement('div');
                 div.className = 'vault-item';
                 const execs = item.executions || 0;
-                div.innerHTML = `<span class="vault-item-title">${escapeHtml(item.title)}</span><span class="vault-item-badge"><i class="fa-solid fa-play"></i> ${execs}</span>`;
+                const initial = (item.title || '?').trim().charAt(0).toUpperCase() || '?';
+                div.innerHTML = `
+                    <span class="vault-item-main">
+                        <span class="vault-item-icon">${escapeHtml(initial)}</span>
+                        <span class="vault-item-title">${escapeHtml(item.title)}</span>
+                    </span>
+                    <span class="vault-item-badge"><i class="fa-solid fa-play"></i> ${execs}</span>
+                `;
                 div.addEventListener('click', () => loadVaultIntoEditor(docSnap.id, item));
                 vaultListContainer.appendChild(div);
             });
         } catch (err) {
             vaultListContainer.innerHTML = `<div class="info-box text-red"><p>Error loading vaults: ${escapeHtml(friendlyAuthError(err))}</p></div>`;
         }
+    }
+
+    function updateVaultCount(count) {
+        if (!vaultListCount) return;
+        vaultListCount.textContent = count;
+        vaultListCount.classList.toggle('hidden', !count);
     }
 
     function escapeHtml(str) {

@@ -37,9 +37,16 @@
                 </div>
 
                 <div class="panel-group">
-                    <label class="panel-label">MY VAULTS (CLICK TO LOAD / EDIT)</label>
-                    <div id="vault-list" class="vault-list">
-                        <div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>
+                    <button type="button" id="vault-list-toggle" class="vault-list-header">
+                        <span><i class="fa-solid fa-vault"></i> MY VAULTS <span id="vault-list-count" class="vault-list-count hidden">0</span></span>
+                        <i class="fa-solid fa-chevron-down vault-list-chevron"></i>
+                    </button>
+                    <div id="vault-list-panel" class="vault-list-panel">
+                        <div class="vault-list-panel-inner">
+                            <div id="vault-list" class="vault-list">
+                                <div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
