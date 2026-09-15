@@ -28,6 +28,7 @@
                 <div class="panel-group">
                     <label class="panel-label">VAULT TITLE</label>
                     <input type="text" id="script-title" class="input-field" placeholder="Hub / Script Name">
+                    <span class="field-error hidden" id="title-error"></span>
                 </div>
 
                 <div class="panel-group">
@@ -80,6 +81,7 @@
                     <span id="editing-indicator" class="text-cyan hidden"><i class="fa-solid fa-pen"></i> Editing Existing Vault</span>
                 </div>
                 <textarea id="source-code" placeholder="-- Paste your raw Luau or already-obfuscated script here...&#10;print('VoidedX Secure Vault Active')" spellcheck="false"></textarea>
+                <span class="field-error field-error-block hidden" id="code-error"></span>
 
                 <div id="result-overlay" class="result-panel hidden">
                     <div class="result-content">
@@ -97,22 +99,58 @@
     <!-- Auth Modal -->
     <div id="auth-modal" class="modal-overlay hidden">
         <div class="auth-card">
-            <div class="auth-tabs">
-                <button id="tab-login" class="auth-tab active">Log In</button>
-                <button id="tab-signup" class="auth-tab">Sign Up</button>
+            <button id="auth-close-x" class="modal-close-x" aria-label="Close" type="button"><i class="fa-solid fa-xmark"></i></button>
+            <div class="auth-header">
+                <i class="fa-solid fa-shield-halved auth-header-icon"></i>
+                <h3 id="auth-heading">Welcome back</h3>
+                <p id="auth-subheading" class="auth-subheading">Log in to sync your vaults to the cloud.</p>
             </div>
+
+            <div class="auth-tabs">
+                <button id="tab-login" class="auth-tab active" type="button">Log In</button>
+                <button id="tab-signup" class="auth-tab" type="button">Sign Up</button>
+            </div>
+
+            <div id="auth-banner" class="auth-banner hidden"></div>
+
             <div class="panel-group">
                 <label class="panel-label">EMAIL</label>
-                <input type="email" id="auth-email" class="input-field" placeholder="developer@voidedx.com">
+                <input type="email" id="auth-email" class="input-field" placeholder="developer@voidedx.com" autocomplete="email">
+                <span class="field-error hidden" id="email-error"></span>
             </div>
             <div class="panel-group">
                 <label class="panel-label">PASSWORD</label>
-                <input type="password" id="auth-password" class="input-field" placeholder="••••••••">
+                <div class="password-field">
+                    <input type="password" id="auth-password" class="input-field" placeholder="••••••••" autocomplete="current-password">
+                    <button type="button" id="toggle-password-btn" class="password-toggle" aria-label="Show password">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+                <span class="field-error hidden" id="password-error"></span>
+                <span id="password-hint" class="field-hint hidden">Use at least 6 characters.</span>
             </div>
-            <button id="auth-submit-btn" class="btn-primary">Log In</button>
-            <button id="auth-close-btn" class="btn-accent">Cancel</button>
+            <button id="auth-submit-btn" class="btn-primary">
+                <span id="auth-submit-label">Log In</span>
+            </button>
+            <button id="auth-close-btn" class="btn-ghost" type="button">Cancel</button>
         </div>
     </div>
+
+    <!-- Custom Confirm Modal (replaces window.confirm) -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="confirm-card">
+            <i class="fa-solid fa-triangle-exclamation confirm-icon"></i>
+            <h4 id="confirm-title">Delete this vault?</h4>
+            <p id="confirm-message" class="confirm-message">This action can't be undone.</p>
+            <div class="confirm-actions">
+                <button id="confirm-cancel-btn" class="btn-ghost" type="button">Cancel</button>
+                <button id="confirm-ok-btn" class="btn-danger" type="button">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
     <script type="module" src="script.js"></script>
 </body>

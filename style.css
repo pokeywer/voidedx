@@ -91,3 +91,76 @@ textarea { flex: 1; min-height: 300px; width: 100%; background: var(--bg-base); 
 .text-cyan { color: var(--cyan); }
 .text-success { color: var(--green); }
 .text-red { color: var(--red); }
+
+/* ---------- Ghost button ---------- */
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%; }
+.btn-ghost:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+/* ---------- Field validation ---------- */
+.input-field.error, .password-field.error .input-field { border-color: var(--red) !important; }
+.field-error { font-size: 11px; color: var(--red); display: flex; align-items: center; gap: 6px; }
+.field-error::before { content: "\f06a"; font-family: "Font Awesome 6 Free"; font-weight: 900; }
+.field-error-block { margin-top: -8px; }
+.field-hint { font-size: 11px; color: var(--text-muted); }
+
+@keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+}
+.shake-error { animation: shake 0.4s ease; border-color: var(--red) !important; }
+
+/* ---------- Password field ---------- */
+.password-field { position: relative; display: flex; }
+.password-field .input-field { padding-right: 40px; }
+.password-toggle { position: absolute; right: 0; top: 0; bottom: 0; width: 40px; background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.password-toggle:hover { color: var(--cyan); }
+
+/* ---------- Auth modal upgrades ---------- */
+.auth-card { position: relative; }
+.modal-close-x { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; width: 28px; height: 28px; border-radius: 6px; }
+.modal-close-x:hover { color: var(--text-primary); background: var(--bg-panel); }
+.auth-header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 4px; }
+.auth-header-icon { font-size: 26px; color: var(--cyan); margin-bottom: 4px; }
+.auth-header h3 { font-size: 17px; font-weight: 800; }
+.auth-subheading { font-size: 12px; color: var(--text-muted); }
+
+.auth-banner { font-size: 12px; padding: 10px 12px; border-radius: 6px; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
+.auth-banner.error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; }
+.auth-banner.info { background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.35); color: #67e8f9; }
+.auth-banner::before { font-family: "Font Awesome 6 Free"; font-weight: 900; margin-top: 1px; }
+.auth-banner.error::before { content: "\f06a"; }
+.auth-banner.info::before { content: "\f05a"; }
+
+.btn-primary:disabled, .btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary .fa-spin { margin-right: 2px; }
+
+/* ---------- Confirm modal ---------- */
+.confirm-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px 24px; max-width: 380px; width: 90%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.confirm-icon { font-size: 30px; color: var(--red); }
+.confirm-card h4 { font-size: 15px; font-weight: 800; }
+.confirm-message { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; width: 100%; margin-top: 8px; }
+.confirm-actions button { flex: 1; width: auto; }
+
+/* ---------- Toasts ---------- */
+.toast-container { position: fixed; top: 16px; right: 16px; left: 16px; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
+@media (min-width: 769px) { .toast-container { left: auto; width: 340px; } }
+.toast { pointer-events: auto; width: 100%; max-width: 360px; background: var(--bg-surface); border: 1px solid var(--border-color); border-left: 3px solid var(--cyan); border-radius: 8px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0,0,0,0.4); animation: toast-in 0.25s ease; }
+.toast.success { border-left-color: var(--green); }
+.toast.error { border-left-color: var(--red); }
+.toast.info { border-left-color: var(--cyan); }
+.toast i.toast-icon { margin-top: 1px; }
+.toast.success i.toast-icon { color: var(--green); }
+.toast.error i.toast-icon { color: var(--red); }
+.toast.info i.toast-icon { color: var(--cyan); }
+.toast-close { margin-left: auto; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; }
+.toast-close:hover { color: var(--text-primary); }
+.toast.leaving { animation: toast-out 0.2s ease forwards; }
+
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(12px); } }
+
+/* ---------- Button loading spinner base ---------- */
+.btn-primary, .btn-ghost, .btn-danger { transition: opacity 0.15s; }
