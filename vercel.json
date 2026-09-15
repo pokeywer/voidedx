@@ -1,14 +1,4 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
-    {
-      "source": "/api/raw",
-      "destination": "/api/raw.js"
-    },
-    {
-      "source": "/vault",
-      "destination": "/vault.html"
-    }
-  ]
+  "trailingSlash": false
 }

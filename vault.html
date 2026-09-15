@@ -9,17 +9,46 @@
 </head>
 <body>
     <div class="shell flex-center">
-        <div class="secured-card">
+
+        <!-- Loading -->
+        <div id="loading-state" class="secured-card">
+            <div class="shield-badge"><i class="fa-solid fa-spinner fa-spin text-cyan"></i></div>
+            <h2>Checking vault…</h2>
+            <p>Verifying this link against VoidedX Cloud.</p>
+        </div>
+
+        <!-- Not found -->
+        <div id="error-state" class="secured-card hidden">
+            <div class="shield-badge"><i class="fa-solid fa-triangle-exclamation text-red"></i></div>
+            <h2>Vault Not Found</h2>
+            <p id="error-message">This vault ID doesn't exist or may have been deleted.</p>
+        </div>
+
+        <!-- Key required -->
+        <div id="keyprompt-state" class="secured-card hidden">
+            <div class="shield-badge"><i class="fa-solid fa-key text-cyan"></i></div>
+            <h2>Key Required</h2>
+            <p id="keyprompt-title">This vault is protected by a key.</p>
+            <div class="panel-group">
+                <label class="panel-label">ENTER KEY</label>
+                <input type="text" id="key-input" class="input-field" placeholder="Enter access key">
+                <span class="field-error hidden" id="key-error"></span>
+            </div>
+            <button id="key-submit-btn" class="btn-primary"><i class="fa-solid fa-unlock"></i> Unlock</button>
+        </div>
+
+        <!-- Secured / verified -->
+        <div id="secured-state" class="secured-card hidden">
             <div class="shield-badge">
                 <i class="fa-solid fa-shield-halved text-cyan"></i>
             </div>
             <h2>SECURED!</h2>
-            <p>This script is protected by <strong>VoidedX Anti-Skid Vault</strong>.</p>
-            
+            <p id="secured-title">This script is protected by <strong>VoidedX Anti-Skid Vault</strong>.</p>
+
             <div class="protection-tags">
                 <span><i class="fa-solid fa-eye-slash"></i> Source Hidden</span>
                 <span><i class="fa-solid fa-database"></i> Firebase Vault</span>
-                <span><i class="fa-solid fa-key"></i> Key System Available</span>
+                <span id="key-tag" class="hidden"><i class="fa-solid fa-key"></i> Key Verified</span>
             </div>
 
             <div class="loadstring-box">
@@ -32,24 +61,142 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const id = urlParams.get('id') || 'vx_protected';
-            const key = urlParams.get('key');
-            const loadstringInput = document.getElementById('loadstring-input');
-            const copyBtn = document.getElementById('copy-ls-btn');
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
+            authDomain: "voidedx-fe79f.firebaseapp.com",
+            projectId: "voidedx-fe79f",
+            storageBucket: "voidedx-fe79f.firebasestorage.app",
+            messagingSenderId: "784635868195",
+            appId: "1:784635868195:web:6e879214df4238bc2aad96"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const loadingState = document.getElementById('loading-state');
+        const errorState = document.getElementById('error-state');
+        const errorMessage = document.getElementById('error-message');
+        const keypromptState = document.getElementById('keyprompt-state');
+        const keypromptTitle = document.getElementById('keyprompt-title');
+        const keyInput = document.getElementById('key-input');
+        const keyError = document.getElementById('key-error');
+        const keySubmitBtn = document.getElementById('key-submit-btn');
+        const securedState = document.getElementById('secured-state');
+        const securedTitle = document.getElementById('secured-title');
+        const keyTag = document.getElementById('key-tag');
+        const loadstringInput = document.getElementById('loadstring-input');
+        const copyBtn = document.getElementById('copy-ls-btn');
+
+        function showOnly(el) {
+            [loadingState, errorState, keypromptState, securedState].forEach(s => s.classList.add('hidden'));
+            el.classList.remove('hidden');
+        }
+
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]} toast-icon"></i><span>${message}</span><button class="toast-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>`;
+            const remove = () => { toast.classList.add('leaving'); setTimeout(() => toast.remove(), 200); };
+            toast.querySelector('.toast-close').addEventListener('click', remove);
+            container.appendChild(toast);
+            if (duration > 0) setTimeout(remove, duration);
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const vaultId = urlParams.get('id');
+        let providedKey = urlParams.get('key') || '';
+        let vaultData = null;
+
+        function buildLoadstring(id, key) {
             const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
-            const rawUrl = `${window.location.origin}/api/raw?id=${id}${keyParam}`;
-            loadstringInput.value = `loadstring(game:HttpGet("${rawUrl}"))()`;
+            return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}${keyParam}"))()`;
+        }
 
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(loadstringInput.value);
-                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
-                setTimeout(() => copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy', 2000);
-            });
+        function showSecured(data, key) {
+            securedTitle.innerHTML = `<strong>${escapeHtml(data.title || 'Untitled Vault')}</strong> is protected by <strong>VoidedX Anti-Skid Vault</strong>.`;
+            keyTag.classList.toggle('hidden', !data.requireKey);
+            loadstringInput.value = buildLoadstring(vaultId, key);
+            showOnly(securedState);
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+
+        async function loadVault() {
+            if (!vaultId) {
+                errorMessage.textContent = 'No vault ID was provided in the link.';
+                showOnly(errorState);
+                return;
+            }
+
+            try {
+                const docSnap = await getDoc(doc(db, 'vaults', vaultId));
+                if (!docSnap.exists()) {
+                    errorMessage.textContent = "This vault ID doesn't exist or may have been deleted.";
+                    showOnly(errorState);
+                    return;
+                }
+
+                vaultData = docSnap.data();
+
+                if (vaultData.requireKey && providedKey !== vaultData.key) {
+                    keypromptTitle.innerHTML = `<strong>${escapeHtml(vaultData.title || 'This vault')}</strong> is protected by a key.`;
+                    showOnly(keypromptState);
+                    return;
+                }
+
+                showSecured(vaultData, providedKey);
+            } catch (err) {
+                errorMessage.textContent = 'Something went wrong checking this vault: ' + err.message;
+                showOnly(errorState);
+            }
+        }
+
+        keySubmitBtn.addEventListener('click', () => {
+            const entered = keyInput.value.trim();
+            keyError.classList.add('hidden');
+            keyInput.classList.remove('error');
+
+            if (!entered) {
+                keyError.textContent = 'Enter the access key.';
+                keyError.classList.remove('hidden');
+                keyInput.classList.add('error');
+                return;
+            }
+
+            if (!vaultData || entered !== vaultData.key) {
+                keyError.textContent = 'Incorrect key. Try again.';
+                keyError.classList.remove('hidden');
+                keyInput.classList.add('error');
+                return;
+            }
+
+            providedKey = entered;
+            showSecured(vaultData, providedKey);
         });
+
+        keyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); keySubmitBtn.click(); }
+        });
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(loadstringInput.value);
+            copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            showToast('Loadstring copied to clipboard.', 'success', 2000);
+            setTimeout(() => copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy', 2000);
+        });
+
+        loadVault();
     </script>
 </body>
 </html>

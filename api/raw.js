@@ -13,11 +13,31 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
+function isExecutorRequest(req) {
+    const ua = (req.headers['user-agent'] || '').toLowerCase();
+    if (req.query.format === 'raw') return true;
+    return ua.includes('roblox') ||
+           ua.includes('synapse') ||
+           ua.includes('executor') ||
+           ua.includes('script-ware') ||
+           ua.includes('krnl') ||
+           ua.includes('fluxus') ||
+           ua.includes('electron') ||
+           ua.includes('curl') ||
+           ua === '';
+}
+
 export default async function handler(req, res) {
     const { id, key } = req.query;
 
     if (!id) {
-        return res.status(400).send('-- [VoidedX Error]: Missing Vault ID parameter');
+        return res.status(400).send('-- Error: Missing Vault ID');
+    }
+
+    // Real browser visitors get sent to the SECURED landing page instead of raw code.
+    if (!isExecutorRequest(req)) {
+        const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
+        return res.redirect(302, `/vault.html?id=${encodeURIComponent(id)}${keyParam}`);
     }
 
     try {
@@ -25,23 +45,28 @@ export default async function handler(req, res) {
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
-            return res.status(404).send('-- [VoidedX Error]: Vault not found or has been deleted');
+            return res.status(404).send('-- Error: Vault ID not found in VoidedX Cloud');
         }
 
-        const data = docSnap.data();
+        const vaultData = docSnap.data();
 
-        // Check key system validation
-        if (data.requireKey) {
-            if (!key || key !== data.key) {
-                return res.status(401).send(`-- [VoidedX Security]: Key validation failed. Required: ?key=YOUR_KEY`);
+        // Key verification check
+        if (vaultData.requireKey) {
+            if (!key || key !== vaultData.key) {
+                return res.status(403).send(`
+-- [VOIDEDX SECURITY ALERT]
+-- Key protection is enabled for this script.
+-- Invalid or missing key parameter.
+error("[VoidedX] Invalid Key Provided!", 2)
+                `);
             }
         }
 
-        // Return plain text Lua script output for game:HttpGet
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        return res.status(200).send(data.code || '');
+        // Return raw execution wrapper for Roblox Executors
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.status(200).send(vaultData.code);
     } catch (err) {
-        return res.status(500).send(`-- [VoidedX Internal Error]: ${err.message}`);
+        return res.status(500).send(`-- Error loading script: ${err.message}`);
     }
 }
