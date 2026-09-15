@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 
 const firebaseConfig = {
     apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
@@ -60,6 +60,15 @@ export default async function handler(req, res) {
 error("[VoidedX] Invalid Key Provided!", 2)
                 `);
             }
+        }
+
+        // Increment execution counter in Firestore
+        try {
+            await updateDoc(docRef, {
+                executions: increment(1)
+            });
+        } catch (e) {
+            // Non-blocking fail silently for counter update
         }
 
         // Return raw execution wrapper for Roblox Executors

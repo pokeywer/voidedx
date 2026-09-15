@@ -155,6 +155,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeVaultId = document.getElementById('active-vault-id');
     const editingIndicator = document.getElementById('editing-indicator');
     const vaultListContainer = document.getElementById('vault-list');
+    const execCountBadge = document.getElementById('exec-count-badge');
+    const execCountNum = document.getElementById('exec-count-num');
+    const promoShareBtn = document.getElementById('promo-share-btn');
+
+    if (promoShareBtn) {
+        promoShareBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.origin);
+            showToast('VoidedX link copied to clipboard!', 'success', 3000);
+        });
+    }
+
+    // Key System Toggle
+    chkKeySystem.addEventListener('change', () => {
+        scriptKey.classList.toggle('hidden', !chkKeySystem.checked);
+    });
 
     // Auth Elements
     const authBtn = document.getElementById('auth-btn');
@@ -175,11 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const authSubmitLabel = document.getElementById('auth-submit-label');
     const authCloseBtn = document.getElementById('auth-close-btn');
     const authCloseX = document.getElementById('auth-close-x');
-
-    // Key System Toggle
-    chkKeySystem.addEventListener('change', () => {
-        scriptKey.classList.toggle('hidden', !chkKeySystem.checked);
-    });
 
     // ---------------- Auth modal open/close ----------------
 
@@ -338,7 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const item = docSnap.data();
                 const div = document.createElement('div');
                 div.className = 'vault-item';
-                div.innerHTML = `<span class="vault-item-title">${escapeHtml(item.title)}</span><i class="fa-solid fa-chevron-right text-cyan"></i>`;
+                const execs = item.executions || 0;
+                div.innerHTML = `<span class="vault-item-title">${escapeHtml(item.title)}</span><span class="vault-item-badge"><i class="fa-solid fa-play"></i> ${execs}</span>`;
                 div.addEventListener('click', () => loadVaultIntoEditor(docSnap.id, item));
                 vaultListContainer.appendChild(div);
             });
@@ -363,6 +374,11 @@ document.addEventListener('DOMContentLoaded', () => {
         scriptKey.classList.toggle('hidden', !data.requireKey);
         editingIndicator.classList.remove('hidden');
         deleteBtn.classList.remove('hidden');
+
+        if (execCountBadge && execCountNum) {
+            execCountNum.textContent = data.executions || 0;
+            execCountBadge.classList.remove('hidden');
+        }
 
         const keyParam = data.requireKey && data.key ? `&key=${encodeURIComponent(data.key)}` : '';
         const rawUrl = `${window.location.origin}/api/raw?id=${id}${keyParam}`;
@@ -401,12 +417,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = scriptKey.value.trim();
         const vaultId = activeVaultId.value || ('vx_' + Math.random().toString(36).substring(2, 10));
 
+        let currentExecutions = 0;
+        if (activeVaultId.value) {
+            try {
+                const docSnap = await getDoc(doc(db, "vaults", vaultId));
+                if (docSnap.exists()) {
+                    currentExecutions = docSnap.data().executions || 0;
+                }
+            } catch (e) {}
+        }
+
         const payload = {
             id: vaultId,
             title: title,
             code: code,
             requireKey: requireKey,
             key: key,
+            executions: currentExecutions,
             uid: currentUser ? currentUser.uid : 'guest',
             updatedAt: Date.now()
         };
@@ -419,6 +446,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await setDoc(doc(db, "vaults", vaultId), payload);
             activeVaultId.value = vaultId;
+
+            if (execCountBadge && execCountNum) {
+                execCountNum.textContent = currentExecutions;
+                execCountBadge.classList.remove('hidden');
+            }
 
             const keyParam = requireKey && key ? `&key=${encodeURIComponent(key)}` : '';
             const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}${keyParam}`;
@@ -480,6 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
             editingIndicator.classList.add('hidden');
             deleteBtn.classList.add('hidden');
             resultOverlay.classList.add('hidden');
+            if (execCountBadge) execCountBadge.classList.add('hidden');
             clearFieldError(sourceCode, codeError);
             showToast('Vault deleted.', 'info');
             loadUserVaults();

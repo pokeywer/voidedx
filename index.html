@@ -9,6 +9,11 @@
 </head>
 <body>
     <div class="shell">
+        <div class="promo-banner">
+            <i class="fa-solid fa-rocket promo-icon"></i>
+            <span><strong>VoidedX Script Vault</strong> — Fast, Free & Secure Roblox Script Hosting & Key System! Share your scripts safely.</span>
+            <button class="btn-promo" id="promo-share-btn"><i class="fa-solid fa-share-nodes"></i> Share VoidedX</button>
+        </div>
         <header class="top-nav">
             <div class="brand-unit">
                 <i class="fa-solid fa-terminal brand-icon"></i>
@@ -78,7 +83,10 @@
             <section class="editor-stage">
                 <div class="editor-header">
                     <span class="editor-title"><i class="fa-solid fa-code"></i> PASTE YOUR SCRIPT </span>
-                    <span id="editing-indicator" class="text-cyan hidden"><i class="fa-solid fa-pen"></i> Editing Existing Vault</span>
+                    <div class="editor-header-right">
+                        <span id="exec-count-badge" class="exec-count-badge hidden"><i class="fa-solid fa-play text-cyan"></i> <span id="exec-count-num">0</span> Executions</span>
+                        <span id="editing-indicator" class="text-cyan hidden"><i class="fa-solid fa-pen"></i> Editing Existing Vault</span>
+                    </div>
                 </div>
                 <textarea id="source-code" placeholder="-- Paste your raw Luau or already-obfuscated script here...&#10;print('VoidedX Secure Vault Active')" spellcheck="false"></textarea>
                 <span class="field-error field-error-block hidden" id="code-error"></span>
