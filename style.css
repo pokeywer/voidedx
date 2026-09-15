@@ -164,3 +164,19 @@ textarea { flex: 1; min-height: 300px; width: 100%; background: var(--bg-base); 
 
 /* ---------- Button loading spinner base ---------- */
 .btn-primary, .btn-ghost, .btn-danger { transition: opacity 0.15s; }
+
+/* ---------- Mobile fixes ---------- */
+@media (max-width: 480px) {
+    /* Prevent iOS Safari from force-zooming the page when an input is focused
+       (it does this automatically for any input/textarea font-size under 16px). */
+    .input-field, textarea, .password-field input { font-size: 16px; }
+
+    /* Keep the header from overflowing on narrow phones when a full email
+       is shown next to the Logout button. */
+    .top-nav { flex-wrap: wrap; height: auto; min-height: 56px; padding: 8px 12px; gap: 8px; }
+    .brand-tag { display: none; }
+    .nav-user { gap: 8px; }
+    .user-badge { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .confirm-actions { flex-direction: column; }
+}
