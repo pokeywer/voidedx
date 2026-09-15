@@ -120,7 +120,7 @@
         }
 
         function showSecured(data, key) {
-            securedTitle.innerHTML = `<strong>${escapeHtml(data.title || 'Untitled Vault')}</strong> is protected by <strong>VoidedX Anti-Skid Vault</strong>.`;
+            securedTitle.innerHTML = `<strong>${escapeHtml(data.title || 'Untitled Vault')}</strong> is protected by <strong>VoidedX Vault</strong>.`;
             keyTag.classList.toggle('hidden', !data.requireKey);
             loadstringInput.value = buildLoadstring(vaultId, key);
             showOnly(securedState);
