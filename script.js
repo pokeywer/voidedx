@@ -152,9 +152,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultOverlay = document.getElementById('result-overlay');
     const lsOutput = document.getElementById('ls-output');
     const copyBtn = document.getElementById('copy-out-btn');
+    const getKeyRow = document.getElementById('get-key-row');
+    const getKeyOutput = document.getElementById('get-key-output');
+    const copyKeyLinkBtn = document.getElementById('copy-key-link-btn');
     const chkBackup = document.getElementById('chk-backup');
     const chkKeySystem = document.getElementById('chk-key-system');
+    const keySystemFields = document.getElementById('key-system-fields');
     const scriptKey = document.getElementById('script-key');
+    const generateKeyBtn = document.getElementById('generate-key-btn');
+    const chkKeyRotation = document.getElementById('chk-key-rotation');
     const activeVaultId = document.getElementById('active-vault-id');
     const editingIndicator = document.getElementById('editing-indicator');
     const vaultListContainer = document.getElementById('vault-list');
@@ -182,7 +188,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Key System Toggle
     chkKeySystem.addEventListener('change', () => {
-        scriptKey.classList.toggle('hidden', !chkKeySystem.checked);
+        keySystemFields.classList.toggle('hidden', !chkKeySystem.checked);
+    });
+
+    function generateRandomKey() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let out = 'VX-';
+        for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
+        return out;
+    }
+
+    generateKeyBtn.addEventListener('click', () => {
+        scriptKey.value = generateRandomKey();
+        scriptKey.classList.remove('error');
+        showToast('Random key generated.', 'success', 2000);
+    });
+
+    copyKeyLinkBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(getKeyOutput.value);
+        copyKeyLinkBtn.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
+        showToast('Get-Key link copied — share this instead of the raw key.', 'success', 2500);
+        setTimeout(() => copyKeyLinkBtn.innerHTML = '<i class="fa-solid fa-key"></i> COPY GET-KEY LINK', 2000);
     });
 
     // Auth Elements
@@ -401,7 +427,8 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFieldError(sourceCode, codeError);
         chkKeySystem.checked = !!data.requireKey;
         scriptKey.value = data.key || '';
-        scriptKey.classList.toggle('hidden', !data.requireKey);
+        keySystemFields.classList.toggle('hidden', !data.requireKey);
+        chkKeyRotation.checked = !!data.keyRotation;
         editingIndicator.classList.remove('hidden');
         deleteBtn.classList.remove('hidden');
 
@@ -414,7 +441,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const rawUrl = `${window.location.origin}/api/raw?id=${id}${keyParam}`;
         lsOutput.value = `loadstring(game:HttpGet("${rawUrl}"))()`;
         resultOverlay.classList.remove('hidden');
-        showToast(`Loaded "${data.title || 'Untitled Vault'}" into the editor.`, 'info', 2500);
+
+        if (data.requireKey) {
+            getKeyOutput.value = `${window.location.origin}/key.html?id=${id}`;
+            getKeyRow.classList.remove('hidden');
+        } else {
+            getKeyRow.classList.add('hidden');
+        }
+        showToast(`Loaded "${escapeHtml(data.title || 'Untitled Vault')}" into the editor.`, 'info', 2500);
     }
 
     // ---------------- Lock / Save Vault ----------------
@@ -460,14 +494,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = scriptTitle.value.trim() || 'Untitled Vault';
         const requireKey = chkKeySystem.checked;
         const key = scriptKey.value.trim();
+        const keyRotation = requireKey && chkKeyRotation.checked;
         const vaultId = activeVaultId.value || ('vx_' + Math.random().toString(36).substring(2, 10));
 
         let currentExecutions = 0;
+        let keyGeneratedAt = Date.now();
         if (activeVaultId.value) {
             try {
                 const docSnap = await getDoc(doc(db, "vaults", vaultId));
                 if (docSnap.exists()) {
-                    currentExecutions = docSnap.data().executions || 0;
+                    const existing = docSnap.data();
+                    currentExecutions = existing.executions || 0;
+                    // Only reset the rotation timer if the key or rotation setting actually changed —
+                    // otherwise re-saving unrelated edits (like the script code) shouldn't extend it.
+                    if (existing.key === key && !!existing.keyRotation === keyRotation && existing.keyGeneratedAt) {
+                        keyGeneratedAt = existing.keyGeneratedAt;
+                    }
                 }
             } catch (e) {}
         }
@@ -478,6 +520,8 @@ document.addEventListener('DOMContentLoaded', () => {
             code: code,
             requireKey: requireKey,
             key: key,
+            keyRotation: keyRotation,
+            keyGeneratedAt: requireKey ? keyGeneratedAt : null,
             executions: currentExecutions,
             uid: currentUser ? currentUser.uid : 'guest',
             updatedAt: Date.now()
@@ -503,6 +547,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             lsOutput.value = loadstringCmd;
             resultOverlay.classList.remove('hidden');
+
+            if (requireKey) {
+                getKeyOutput.value = `${window.location.origin}/key.html?id=${vaultId}`;
+                getKeyRow.classList.remove('hidden');
+            } else {
+                getKeyRow.classList.add('hidden');
+            }
+
             showToast('Vault saved and locked!', 'success');
 
             if (currentUser) {
@@ -538,10 +590,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLineNumbers();
         scriptKey.value = '';
         chkKeySystem.checked = false;
-        scriptKey.classList.add('hidden');
+        chkKeyRotation.checked = false;
+        keySystemFields.classList.add('hidden');
         editingIndicator.classList.add('hidden');
         deleteBtn.classList.add('hidden');
         resultOverlay.classList.add('hidden');
+        getKeyRow.classList.add('hidden');
         if (execCountBadge) execCountBadge.classList.add('hidden');
         clearFieldError(sourceCode, codeError);
         clearFieldError(scriptTitle, titleError);

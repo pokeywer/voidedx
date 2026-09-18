@@ -52,6 +52,7 @@
                     <span class="field-error hidden" id="key-error"></span>
                 </div>
                 <button id="key-submit-btn" class="btn-primary"><i class="fa-solid fa-unlock"></i> Unlock</button>
+                <a id="get-key-link" href="#" class="btn-ghost key-open-link"><i class="fa-solid fa-key"></i> Don't have a key? Get one here</a>
             </div>
 
             <!-- Secured / verified -->
@@ -170,6 +171,7 @@
 
                 if (vaultData.requireKey && providedKey !== vaultData.key) {
                     keypromptTitle.innerHTML = `<strong>${escapeHtml(vaultData.title || 'This vault')}</strong> is protected by a key.`;
+                    document.getElementById('get-key-link').href = `/key.html?id=${encodeURIComponent(vaultId)}`;
                     showOnly(keypromptState);
                     return;
                 }

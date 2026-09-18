@@ -60,7 +60,21 @@
                             <input type="checkbox" id="chk-key-system">
                             <span class="switch"></span>
                         </label>
-                        <input type="text" id="script-key" name="vx-vault-key" class="input-field hidden" placeholder="Enter Custom Key (e.g. VX-9941)" autocomplete="off" autocorrect="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly');">
+                        <div id="key-system-fields" class="hidden">
+                            <div class="key-input-row">
+                                <input type="text" id="script-key" name="vx-vault-key" class="input-field" placeholder="Enter Custom Key (e.g. VX-9941)" autocomplete="off" autocorrect="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly');">
+                                <button type="button" id="generate-key-btn" class="btn-accent" title="Generate a random key"><i class="fa-solid fa-dice"></i></button>
+                            </div>
+                            <label class="toggle-row key-rotation-row">
+                                <span><i class="fa-solid fa-rotate text-cyan"></i> Auto-Rotate Key Every 24h</span>
+                                <input type="checkbox" id="chk-key-rotation">
+                                <span class="switch"></span>
+                            </label>
+                            <div class="info-box key-rotation-info">
+                                <i class="fa-solid fa-circle-info text-cyan"></i>
+                                <p>With rotation on, this key expires every 24 hours. Share the "Get Key" link (shown after saving) instead of the key itself — visitors get the current key there, like Luarmor/Junkie key pages. Off means one fixed key that never expires.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -109,6 +123,10 @@
                         <div class="url-bar">
                             <input type="text" id="ls-output" readonly>
                             <button id="copy-out-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> COPY LOADSTRING</button>
+                        </div>
+                        <div id="get-key-row" class="url-bar hidden">
+                            <input type="text" id="get-key-output" readonly>
+                            <button id="copy-key-link-btn" class="btn-accent"><i class="fa-solid fa-key"></i> COPY GET-KEY LINK</button>
                         </div>
                     </div>
                 </div>

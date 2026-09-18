@@ -49,9 +49,22 @@ export default async function handler(req, res) {
         }
 
         const vaultData = docSnap.data();
+        const ROTATION_MS = 24 * 60 * 60 * 1000;
 
         // Key verification check
         if (vaultData.requireKey) {
+            const expired = vaultData.keyRotation && vaultData.keyGeneratedAt &&
+                (Date.now() - vaultData.keyGeneratedAt > ROTATION_MS);
+
+            if (expired) {
+                return res.status(403).send(`
+-- [VOIDEDX SECURITY ALERT]
+-- This key has expired (rotates every 24h).
+-- Get the current key at: ${getOrigin(req)}/key.html?id=${id}
+error("[VoidedX] Key expired! Get a new one at ${getOrigin(req)}/key.html?id=${id}", 2)
+                `);
+            }
+
             if (!key || key !== vaultData.key) {
                 return res.status(403).send(`
 -- [VOIDEDX SECURITY ALERT]
@@ -78,4 +91,10 @@ error("[VoidedX] Invalid Key Provided!", 2)
     } catch (err) {
         return res.status(500).send(`-- Error loading script: ${err.message}`);
     }
+}
+
+function getOrigin(req) {
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    return `${proto}://${host}`;
 }

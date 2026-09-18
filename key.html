@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VoidedX // Get Key</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="shell">
+        <div class="promo-banner">
+            <i class="fa-solid fa-rocket promo-icon"></i>
+            <span><strong>VoidedX Script Vault</strong> — Fast, Free & Secure Roblox Script Hosting & Key System! Share your scripts safely.</span>
+            <a href="/" class="btn-promo"><i class="fa-solid fa-plus"></i> Create a Vault</a>
+        </div>
+        <header class="top-nav">
+            <a href="/" class="brand-unit brand-unit-link">
+                <i class="fa-solid fa-terminal brand-icon"></i>
+                <div class="brand-titles">
+                    <span class="brand-name">VOIDEDX</span>
+                    <span class="brand-tag">FREE</span>
+                </div>
+            </a>
+        </header>
+
+        <div class="flex-center">
+        <div class="vault-visitor-stack">
+
+            <!-- Loading -->
+            <div id="loading-state" class="secured-card">
+                <div class="shield-badge"><i class="fa-solid fa-spinner fa-spin text-cyan"></i></div>
+                <h2>Loading…</h2>
+                <p>Looking up this vault's key page.</p>
+            </div>
+
+            <!-- Not found / no key system -->
+            <div id="error-state" class="secured-card hidden">
+                <div class="shield-badge"><i class="fa-solid fa-triangle-exclamation text-red"></i></div>
+                <h2>Key Page Unavailable</h2>
+                <p id="error-message">This vault doesn't exist or doesn't use a key system.</p>
+            </div>
+
+            <!-- Get Key card -->
+            <div id="getkey-state" class="secured-card hidden">
+                <div class="shield-badge"><i class="fa-solid fa-key text-cyan"></i></div>
+                <h2 id="getkey-title">Get Your Key</h2>
+                <p id="getkey-desc">Get your free key below, then paste the loadstring into your executor.</p>
+
+                <div id="key-idle" class="key-generate-block">
+                    <button id="get-key-btn" class="btn-primary"><i class="fa-solid fa-key"></i> Get Key</button>
+                </div>
+
+                <div id="key-loading" class="key-generate-block hidden">
+                    <div class="key-progress-track"><div id="key-progress-fill" class="key-progress-fill"></div></div>
+                    <p id="key-progress-label" class="key-progress-label">Verifying…</p>
+                </div>
+
+                <div id="key-ready" class="hidden">
+                    <div class="protection-tags">
+                        <span id="rotation-tag"><i class="fa-solid fa-rotate"></i> Rotates every 24h</span>
+                        <span id="expiry-tag" class="hidden"><i class="fa-solid fa-clock"></i> <span id="expiry-text">--</span></span>
+                    </div>
+
+                    <div class="loadstring-box">
+                        <label>Your Key:</label>
+                        <div class="copy-input">
+                            <input type="text" id="key-output" readonly>
+                            <button id="copy-key-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> Copy</button>
+                        </div>
+                    </div>
+
+                    <div class="loadstring-box">
+                        <label>Loadstring (paste into your executor):</label>
+                        <div class="copy-input">
+                            <input type="text" id="loadstring-output" readonly>
+                            <button id="copy-ls-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> Copy</button>
+                        </div>
+                    </div>
+
+                    <a id="open-vault-link" href="#" class="btn-ghost key-open-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Vault Page</a>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { getFirestore, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
+            authDomain: "voidedx-fe79f.firebaseapp.com",
+            projectId: "voidedx-fe79f",
+            storageBucket: "voidedx-fe79f.firebasestorage.app",
+            messagingSenderId: "784635868195",
+            appId: "1:784635868195:web:6e879214df4238bc2aad96"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const ROTATION_MS = 24 * 60 * 60 * 1000;
+
+        const loadingState = document.getElementById('loading-state');
+        const errorState = document.getElementById('error-state');
+        const errorMessage = document.getElementById('error-message');
+        const getkeyState = document.getElementById('getkey-state');
+        const getkeyTitle = document.getElementById('getkey-title');
+        const keyIdle = document.getElementById('key-idle');
+        const keyLoading = document.getElementById('key-loading');
+        const keyProgressFill = document.getElementById('key-progress-fill');
+        const keyProgressLabel = document.getElementById('key-progress-label');
+        const keyReady = document.getElementById('key-ready');
+        const getKeyBtn = document.getElementById('get-key-btn');
+        const keyOutput = document.getElementById('key-output');
+        const copyKeyBtn = document.getElementById('copy-key-btn');
+        const loadstringOutput = document.getElementById('loadstring-output');
+        const copyLsBtn = document.getElementById('copy-ls-btn');
+        const rotationTag = document.getElementById('rotation-tag');
+        const expiryTag = document.getElementById('expiry-tag');
+        const expiryText = document.getElementById('expiry-text');
+        const openVaultLink = document.getElementById('open-vault-link');
+
+        function showOnly(el) {
+            [loadingState, errorState, getkeyState].forEach(s => s.classList.add('hidden'));
+            el.classList.remove('hidden');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]} toast-icon"></i><span>${message}</span><button class="toast-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>`;
+            const remove = () => { toast.classList.add('leaving'); setTimeout(() => toast.remove(), 200); };
+            toast.querySelector('.toast-close').addEventListener('click', remove);
+            container.appendChild(toast);
+            if (duration > 0) setTimeout(remove, duration);
+        }
+
+        function generateRandomKey() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let out = 'VX-';
+            for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
+            return out;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const vaultId = urlParams.get('id');
+        let vaultRef = null;
+        let countdownInterval = null;
+
+        function formatCountdown(msLeft) {
+            if (msLeft <= 0) return 'expired — refresh to get a new key';
+            const h = Math.floor(msLeft / 3600000);
+            const m = Math.floor((msLeft % 3600000) / 60000);
+            return `Expires in ${h}h ${m}m`;
+        }
+
+        function startCountdown(expiresAt) {
+            if (countdownInterval) clearInterval(countdownInterval);
+            const tick = () => {
+                const msLeft = expiresAt - Date.now();
+                expiryText.textContent = formatCountdown(msLeft);
+                if (msLeft <= 0) clearInterval(countdownInterval);
+            };
+            tick();
+            countdownInterval = setInterval(tick, 30000);
+        }
+
+        function buildLoadstring(id, key) {
+            return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}"))()`;
+        }
+
+        async function loadVault() {
+            if (!vaultId) {
+                errorMessage.textContent = 'No vault ID was provided in the link.';
+                showOnly(errorState);
+                return;
+            }
+            try {
+                vaultRef = doc(db, 'vaults', vaultId);
+                const snap = await getDoc(vaultRef);
+                if (!snap.exists()) {
+                    errorMessage.textContent = "This vault ID doesn't exist or may have been deleted.";
+                    showOnly(errorState);
+                    return;
+                }
+                const data = snap.data();
+                if (!data.requireKey) {
+                    errorMessage.textContent = "This vault doesn't use a key system — no key is needed to run it.";
+                    showOnly(errorState);
+                    return;
+                }
+                getkeyTitle.innerHTML = `Get Your Key — <span class="text-cyan">${escapeHtml(data.title || 'Untitled Vault')}</span>`;
+                rotationTag.classList.toggle('hidden', !data.keyRotation);
+                showOnly(getkeyState);
+            } catch (err) {
+                errorMessage.textContent = 'Something went wrong loading this vault: ' + err.message;
+                showOnly(errorState);
+            }
+        }
+
+        getKeyBtn.addEventListener('click', () => {
+            keyIdle.classList.add('hidden');
+            keyLoading.classList.remove('hidden');
+
+            const steps = ['Verifying request…', 'Checking vault…', 'Preparing your key…'];
+            let pct = 0;
+            let stepIndex = 0;
+            keyProgressLabel.textContent = steps[0];
+
+            const progressInterval = setInterval(async () => {
+                pct += 8;
+                keyProgressFill.style.width = Math.min(pct, 100) + '%';
+                const newStep = Math.min(Math.floor(pct / 34), steps.length - 1);
+                if (newStep !== stepIndex) {
+                    stepIndex = newStep;
+                    keyProgressLabel.textContent = steps[stepIndex];
+                }
+                if (pct >= 100) {
+                    clearInterval(progressInterval);
+                    await revealKey();
+                }
+            }, 180);
+        });
+
+        async function revealKey() {
+            try {
+                const snap = await getDoc(vaultRef);
+                if (!snap.exists()) {
+                    showToast('This vault no longer exists.', 'error');
+                    return;
+                }
+                const data = snap.data();
+                const now = Date.now();
+                const expired = data.keyRotation && (!data.keyGeneratedAt || (now - data.keyGeneratedAt > ROTATION_MS));
+
+                let activeKey = data.key;
+                let generatedAt = data.keyGeneratedAt || now;
+
+                if (expired) {
+                    activeKey = generateRandomKey();
+                    generatedAt = now;
+                    await updateDoc(vaultRef, { key: activeKey, keyGeneratedAt: generatedAt });
+                }
+
+                keyOutput.value = activeKey;
+                loadstringOutput.value = buildLoadstring(vaultId, activeKey);
+                openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(activeKey)}`;
+
+                if (data.keyRotation) {
+                    expiryTag.classList.remove('hidden');
+                    startCountdown(generatedAt + ROTATION_MS);
+                } else {
+                    expiryTag.classList.add('hidden');
+                }
+
+                keyLoading.classList.add('hidden');
+                keyReady.classList.remove('hidden');
+                showToast('Key ready — copy it below.', 'success', 2500);
+            } catch (err) {
+                showToast('Failed to generate key: ' + err.message, 'error');
+                keyLoading.classList.add('hidden');
+                keyIdle.classList.remove('hidden');
+            }
+        }
+
+        copyKeyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(keyOutput.value);
+            copyKeyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            showToast('Key copied to clipboard.', 'success', 2000);
+            setTimeout(() => copyKeyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy', 2000);
+        });
+
+        copyLsBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(loadstringOutput.value);
+            copyLsBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            showToast('Loadstring copied to clipboard.', 'success', 2000);
+            setTimeout(() => copyLsBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy', 2000);
+        });
+
+        loadVault();
+    </script>
+</body>
+</html>
