@@ -49,7 +49,8 @@ export default async function handler(req, res) {
         }
 
         const vaultData = docSnap.data();
-        const ROTATION_MS = 24 * 60 * 60 * 1000;
+        const rotationHours = vaultData.keyRotationHours || 24;
+        const ROTATION_MS = rotationHours * 60 * 60 * 1000;
 
         // Key verification check
         if (vaultData.requireKey) {
@@ -59,7 +60,7 @@ export default async function handler(req, res) {
             if (expired) {
                 return res.status(403).send(`
 -- [VOIDEDX SECURITY ALERT]
--- This key has expired (rotates every 24h).
+-- This key has expired (rotates every ${rotationHours}h).
 -- Get the current key at: ${getOrigin(req)}/key.html?id=${id}
 error("[VoidedX] Key expired! Get a new one at ${getOrigin(req)}/key.html?id=${id}", 2)
                 `);
@@ -75,6 +76,23 @@ error("[VoidedX] Invalid Key Provided!", 2)
             }
         }
 
+        // IP lock: bind to the first IP that uses this key, reject others.
+        if (vaultData.requireKey && vaultData.ipLock) {
+            const clientIp = getClientIp(req);
+            if (!vaultData.boundIp) {
+                try {
+                    await updateDoc(docRef, { boundIp: clientIp });
+                } catch (e) {}
+            } else if (vaultData.boundIp !== clientIp) {
+                return res.status(403).send(`
+-- [VOIDEDX SECURITY ALERT]
+-- This key is locked to a different network/IP.
+-- Ask the vault owner to reset the IP lock if this is a mistake.
+error("[VoidedX] This key is locked to another IP address!", 2)
+                `);
+            }
+        }
+
         // Increment execution counter in Firestore
         try {
             await updateDoc(docRef, {
@@ -84,13 +102,61 @@ error("[VoidedX] Invalid Key Provided!", 2)
             // Non-blocking fail silently for counter update
         }
 
-        // Return raw execution wrapper for Roblox Executors
         res.setHeader('Content-Type', 'text/plain');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+        // Account binding: don't hand over the real code directly — send a small loader
+        // that identifies the Roblox account and asks /api/verify to bind/check it first.
+        if (vaultData.requireKey && vaultData.accountBinding) {
+            const verifyBase = `${getOrigin(req)}/api/verify`;
+            const loader = `
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+
+local ok, response = pcall(function()
+    return game:HttpGet(
+        "${verifyBase}?id=${encodeURIComponent(id)}" ..
+        "&key=" .. HttpService:UrlEncode(${luaString(key || '')}) ..
+        "&userId=" .. tostring(player.UserId) ..
+        "&username=" .. HttpService:UrlEncode(player.Name)
+    )
+end)
+
+if not ok then
+    return error("[VoidedX] Could not reach the verification server. Try again.", 0)
+end
+
+local decodeOk, result = pcall(function() return HttpService:JSONDecode(response) end)
+if not decodeOk or type(result) ~= "table" then
+    return error("[VoidedX] Verification server returned a bad response.", 0)
+end
+
+if not result.ok then
+    return error("[VoidedX] " .. tostring(result.message or "Access denied."), 0)
+end
+
+loadstring(result.code)()
+`.trim();
+            return res.status(200).send(loader);
+        }
+
+        // Return raw execution wrapper for Roblox Executors
         return res.status(200).send(vaultData.code);
     } catch (err) {
         return res.status(500).send(`-- Error loading script: ${err.message}`);
     }
+}
+
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+    return req.socket && req.socket.remoteAddress ? req.socket.remoteAddress : 'unknown';
+}
+
+function luaString(str) {
+    const escaped = String(str).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escaped}"`;
 }
 
 function getOrigin(req) {

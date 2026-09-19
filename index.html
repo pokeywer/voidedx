@@ -54,28 +54,10 @@
 
                 <div class="panel-group">
                     <label class="panel-label">OPTIONS</label>
-                    <div class="toggle-list">
-                        <label class="toggle-row">
-                            <span>KeySystem (beta)</span>
-                            <input type="checkbox" id="chk-key-system">
-                            <span class="switch"></span>
-                        </label>
-                        <div id="key-system-fields" class="hidden">
-                            <div class="key-input-row">
-                                <input type="text" id="script-key" name="vx-vault-key" class="input-field" placeholder="Enter Custom Key (e.g. VX-9941)" autocomplete="off" autocorrect="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly');">
-                                <button type="button" id="generate-key-btn" class="btn-accent" title="Generate a random key"><i class="fa-solid fa-dice"></i></button>
-                            </div>
-                            <label class="toggle-row key-rotation-row">
-                                <span><i class="fa-solid fa-rotate text-cyan"></i> Auto-Rotate Key Every 24h</span>
-                                <input type="checkbox" id="chk-key-rotation">
-                                <span class="switch"></span>
-                            </label>
-                            <div class="info-box key-rotation-info">
-                                <i class="fa-solid fa-circle-info text-cyan"></i>
-                                <p>With rotation on, this key expires every 24 hours. Share the "Get Key" link (shown after saving) instead of the key itself — visitors get the current key there, like Luarmor/Junkie key pages. Off means one fixed key that never expires.</p>
-                            </div>
-                        </div>
-                    </div>
+                    <button type="button" id="open-keysystem-btn" class="btn-ghost btn-keysystem-open">
+                        <i class="fa-solid fa-key text-cyan"></i> Key System Manager
+                        <span id="keysystem-status-badge" class="keysystem-badge hidden">OFF</span>
+                    </button>
                 </div>
 
                 <div class="panel-group">
@@ -184,6 +166,109 @@
                 <button id="confirm-cancel-btn" class="btn-ghost" type="button">Cancel</button>
                 <button id="confirm-ok-btn" class="btn-danger" type="button">Delete</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Key System Manager Modal -->
+    <div id="keysystem-modal" class="modal-overlay hidden">
+        <div class="keysystem-card">
+            <button id="keysystem-close-x" class="modal-close-x" aria-label="Close" type="button"><i class="fa-solid fa-xmark"></i></button>
+            <div class="auth-header">
+                <i class="fa-solid fa-key auth-header-icon"></i>
+                <h3>Key System Manager</h3>
+                <p class="auth-subheading">Full control over this vault's key — set it, rotate it, or kill it instantly.</p>
+            </div>
+
+            <label class="toggle-row keysystem-enable-row">
+                <span>Enable Key System</span>
+                <input type="checkbox" id="chk-key-system">
+                <span class="switch"></span>
+            </label>
+
+            <div id="key-system-fields" class="hidden">
+                <div class="panel-group">
+                    <label class="panel-label">CURRENT KEY</label>
+                    <div class="key-input-row">
+                        <input type="text" id="script-key" name="vx-vault-key" class="input-field" placeholder="Enter Custom Key (e.g. VX-9941)" autocomplete="off" autocorrect="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly');">
+                        <button type="button" id="generate-key-btn" class="btn-accent" title="Generate a random key"><i class="fa-solid fa-dice"></i></button>
+                    </div>
+                    <div class="keysystem-key-actions">
+                        <button type="button" id="extend-key-btn" class="btn-accent"><i class="fa-solid fa-clock"></i> Extend Time</button>
+                        <button type="button" id="force-regenerate-btn" class="btn-danger"><i class="fa-solid fa-rotate"></i> Force Regenerate</button>
+                    </div>
+                </div>
+
+                <div class="panel-group">
+                    <label class="panel-label">AUTO-ROTATION</label>
+                    <label class="toggle-row key-rotation-row">
+                        <span><i class="fa-solid fa-rotate text-cyan"></i> Rotate Automatically</span>
+                        <input type="checkbox" id="chk-key-rotation">
+                        <span class="switch"></span>
+                    </label>
+                    <select id="key-rotation-hours" class="input-field">
+                        <option value="1">Every 1 Hour</option>
+                        <option value="6">Every 6 Hours</option>
+                        <option value="12">Every 12 Hours</option>
+                        <option value="24" selected>Every 24 Hours</option>
+                        <option value="72">Every 3 Days</option>
+                        <option value="168">Every 7 Days</option>
+                    </select>
+                    <div class="info-box key-rotation-info">
+                        <i class="fa-solid fa-circle-info text-cyan"></i>
+                        <p>With rotation on, the key expires on the schedule above. Share the "Get Key" link below instead of the key itself — visitors get the current key there, like Luarmor/Junkie key pages. Off means one fixed key that never expires on its own.</p>
+                    </div>
+                </div>
+
+                <div class="panel-group">
+                    <label class="panel-label">IP LOCK</label>
+                    <label class="toggle-row">
+                        <span><i class="fa-solid fa-location-dot text-cyan"></i> Lock Key to First IP</span>
+                        <input type="checkbox" id="chk-ip-lock">
+                        <span class="switch"></span>
+                    </label>
+                    <div id="ip-lock-status" class="info-box hidden">
+                        <i class="fa-solid fa-circle-info text-cyan"></i>
+                        <p id="ip-lock-status-text">Not bound to any IP yet — the next person to use this key locks it in.</p>
+                    </div>
+                    <button type="button" id="reset-ip-btn" class="btn-ghost hidden"><i class="fa-solid fa-eraser"></i> Reset Bound IP</button>
+                    <div class="info-box">
+                        <i class="fa-solid fa-triangle-exclamation text-red"></i>
+                        <p>Heads up: people on shared/mobile networks can have changing IPs, and this can lock out a legitimate user by accident. Use Reset if that happens.</p>
+                    </div>
+                </div>
+
+                <div class="panel-group">
+                    <label class="panel-label">ACCOUNT BINDING</label>
+                    <label class="toggle-row">
+                        <span><i class="fa-solid fa-user-lock text-cyan"></i> Bind Key to Roblox Account</span>
+                        <input type="checkbox" id="chk-account-binding">
+                        <span class="switch"></span>
+                    </label>
+                    <div id="account-binding-fields" class="hidden">
+                        <label class="panel-label" style="margin-top:8px; display:block;">MAX ACCOUNTS ALLOWED</label>
+                        <input type="number" id="max-users-input" class="input-field" min="1" value="1">
+                        <div class="info-box">
+                            <i class="fa-solid fa-circle-info text-cyan"></i>
+                            <p>Not a true cross-executor HWID (no such thing exists universally) — this binds to the Roblox account that first uses the key, which requires a real logged-in Roblox session and can't be casually spoofed.</p>
+                        </div>
+                        <div id="bound-users-list" class="manage-user-list"></div>
+                        <button type="button" id="reset-users-btn" class="btn-ghost"><i class="fa-solid fa-eraser"></i> Reset All Bound Accounts</button>
+                    </div>
+                </div>
+
+                <div id="keysystem-status" class="info-box keysystem-status"></div>
+
+                <div class="panel-group">
+                    <label class="panel-label">GET-KEY LINK</label>
+                    <div class="copy-input">
+                        <input type="text" id="keysystem-get-key-output" readonly placeholder="Save this vault to generate a link">
+                        <button type="button" id="keysystem-copy-key-link-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> Copy</button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="keysystem-apply-btn" class="btn-primary"><i class="fa-solid fa-check"></i> Apply Changes</button>
+            <button id="keysystem-close-btn" class="btn-ghost" type="button">Close</button>
         </div>
     </div>
 

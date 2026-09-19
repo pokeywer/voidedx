@@ -101,6 +101,28 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 }
 .toggle-row:hover .switch { border-color: var(--cyan); }
 
+/* ---------- Key System Manager ---------- */
+.btn-keysystem-open {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-color: rgba(6, 182, 212, 0.35);
+}
+.btn-keysystem-open:hover { border-color: var(--cyan); background: rgba(6, 182, 212, 0.08); }
+.keysystem-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--bg-panel); color: var(--text-muted); }
+.keysystem-badge.on { background: var(--cyan); color: #04202a; }
+
+.keysystem-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; max-width: 460px; width: 90%; max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; position: relative; }
+.keysystem-enable-row { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; }
+.keysystem-key-actions { display: flex; gap: 8px; margin-top: 8px; }
+.keysystem-key-actions button { flex: 1; }
+.keysystem-status p { margin: 0; }
+#ip-lock-status p, #ip-lock-status { margin: 0; }
+.manage-user-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; margin: 10px 0; }
+.manage-user-row { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.manage-user-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.manage-user-name { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.manage-user-meta { font-size: 10.5px; color: var(--text-muted); }
+.manage-user-row .btn-danger { flex-shrink: 0; padding: 6px 10px; font-size: 11px; width: auto; }
+
 /* ---------- Get Key page ---------- */
 .key-generate-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .key-progress-track { width: 100%; height: 8px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; }

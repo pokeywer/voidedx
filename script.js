@@ -3,7 +3,7 @@ import {
     getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
-    getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, where
+    getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 // --- YOUR FIREBASE CONFIG HERE ---
@@ -161,6 +161,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const scriptKey = document.getElementById('script-key');
     const generateKeyBtn = document.getElementById('generate-key-btn');
     const chkKeyRotation = document.getElementById('chk-key-rotation');
+    const keyRotationHoursSelect = document.getElementById('key-rotation-hours');
+    const forceRegenerateBtn = document.getElementById('force-regenerate-btn');
+    const keysystemStatus = document.getElementById('keysystem-status');
+    const keysystemGetKeyOutput = document.getElementById('keysystem-get-key-output');
+    const keysystemCopyKeyLinkBtn = document.getElementById('keysystem-copy-key-link-btn');
+    const openKeysystemBtn = document.getElementById('open-keysystem-btn');
+    const keysystemStatusBadge = document.getElementById('keysystem-status-badge');
+    const keysystemModal = document.getElementById('keysystem-modal');
+    const keysystemCloseX = document.getElementById('keysystem-close-x');
+    const keysystemCloseBtn = document.getElementById('keysystem-close-btn');
+    const keysystemApplyBtn = document.getElementById('keysystem-apply-btn');
+    const extendKeyBtn = document.getElementById('extend-key-btn');
+    const chkIpLock = document.getElementById('chk-ip-lock');
+    const ipLockStatus = document.getElementById('ip-lock-status');
+    const ipLockStatusText = document.getElementById('ip-lock-status-text');
+    const resetIpBtn = document.getElementById('reset-ip-btn');
+    const chkAccountBinding = document.getElementById('chk-account-binding');
+    const accountBindingFields = document.getElementById('account-binding-fields');
+    const maxUsersInput = document.getElementById('max-users-input');
+    const boundUsersList = document.getElementById('bound-users-list');
+    const resetUsersBtn = document.getElementById('reset-users-btn');
     const activeVaultId = document.getElementById('active-vault-id');
     const editingIndicator = document.getElementById('editing-indicator');
     const vaultListContainer = document.getElementById('vault-list');
@@ -189,6 +210,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Key System Toggle
     chkKeySystem.addEventListener('change', () => {
         keySystemFields.classList.toggle('hidden', !chkKeySystem.checked);
+        updateKeysystemBadge();
+    });
+    chkKeyRotation.addEventListener('change', updateKeysystemBadge);
+
+    function updateKeysystemBadge() {
+        if (chkKeySystem.checked) {
+            keysystemStatusBadge.textContent = chkKeyRotation.checked
+                ? `ON · ${keyRotationHoursSelect.value}h rotation`
+                : 'ON';
+            keysystemStatusBadge.classList.remove('hidden');
+            keysystemStatusBadge.classList.add('on');
+        } else {
+            keysystemStatusBadge.textContent = 'OFF';
+            keysystemStatusBadge.classList.remove('on');
+            keysystemStatusBadge.classList.toggle('hidden', true);
+        }
+    }
+    keyRotationHoursSelect.addEventListener('change', updateKeysystemBadge);
+    chkAccountBinding.addEventListener('change', () => {
+        accountBindingFields.classList.toggle('hidden', !chkAccountBinding.checked);
     });
 
     function generateRandomKey() {
@@ -204,11 +245,299 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Random key generated.', 'success', 2000);
     });
 
+    forceRegenerateBtn.addEventListener('click', async () => {
+        const confirmed = await customConfirm({
+            title: 'Force regenerate this key?',
+            message: 'The current key stops working immediately for anyone using it. Click "Apply Changes" after this to save it.',
+            confirmLabel: 'Regenerate'
+        });
+        if (!confirmed) return;
+        scriptKey.value = generateRandomKey();
+        showToast('New key generated — click "Apply Changes" to confirm it.', 'info', 3500);
+    });
+
     copyKeyLinkBtn.addEventListener('click', () => {
         navigator.clipboard.writeText(getKeyOutput.value);
         copyKeyLinkBtn.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
         showToast('Get-Key link copied — share this instead of the raw key.', 'success', 2500);
         setTimeout(() => copyKeyLinkBtn.innerHTML = '<i class="fa-solid fa-key"></i> COPY GET-KEY LINK', 2000);
+    });
+
+    keysystemCopyKeyLinkBtn.addEventListener('click', () => {
+        if (!keysystemGetKeyOutput.value) return;
+        navigator.clipboard.writeText(keysystemGetKeyOutput.value);
+        keysystemCopyKeyLinkBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        showToast('Get-Key link copied.', 'success', 2000);
+        setTimeout(() => keysystemCopyKeyLinkBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy', 2000);
+    });
+
+    // ---------------- Key System Manager modal ----------------
+
+    async function refreshKeysystemStatus() {
+        if (!activeVaultId.value) {
+            keysystemStatus.innerHTML = '<i class="fa-solid fa-circle-info text-cyan"></i><p>This is a new, unsaved vault. Save it once first, then reopen this panel for a shareable Get-Key link and live status.</p>';
+            keysystemGetKeyOutput.value = '';
+            keysystemGetKeyOutput.placeholder = 'Save this vault to generate a link';
+            ipLockStatus.classList.add('hidden');
+            resetIpBtn.classList.add('hidden');
+            boundUsersList.innerHTML = '';
+            return;
+        }
+        keysystemGetKeyOutput.value = `${window.location.origin}/key.html?id=${activeVaultId.value}`;
+        try {
+            const snap = await getDoc(doc(db, "vaults", activeVaultId.value));
+            if (!snap.exists()) {
+                keysystemStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red"></i><p>This vault no longer exists in the database.</p>';
+                return;
+            }
+            const data = snap.data();
+
+            // Keep the form in sync with what's actually saved.
+            chkIpLock.checked = !!data.ipLock;
+            chkAccountBinding.checked = !!data.accountBinding;
+            accountBindingFields.classList.toggle('hidden', !data.accountBinding);
+            maxUsersInput.value = data.maxUsers || 1;
+
+            // IP lock status
+            if (data.ipLock) {
+                ipLockStatus.classList.remove('hidden');
+                if (data.boundIp) {
+                    ipLockStatusText.textContent = `Locked to IP: ${data.boundIp}`;
+                    resetIpBtn.classList.remove('hidden');
+                } else {
+                    ipLockStatusText.textContent = 'Not bound to any IP yet — the next person to use this key locks it in.';
+                    resetIpBtn.classList.add('hidden');
+                }
+            } else {
+                ipLockStatus.classList.add('hidden');
+                resetIpBtn.classList.add('hidden');
+            }
+
+            // Bound accounts list
+            renderBoundUsers(Array.isArray(data.boundUsers) ? data.boundUsers : []);
+
+            if (!data.requireKey) {
+                keysystemStatus.innerHTML = '<i class="fa-solid fa-circle-info text-cyan"></i><p>Key system is currently off for this vault.</p>';
+                return;
+            }
+            const generatedAt = data.keyGeneratedAt || null;
+            const hours = data.keyRotationHours || 24;
+            let statusHtml = `<i class="fa-solid fa-circle-check text-success"></i><p>Current key set${generatedAt ? ' ' + timeAgo(generatedAt) : ''}.`;
+            if (data.keyRotation && generatedAt) {
+                const expiresAt = generatedAt + hours * 60 * 60 * 1000;
+                const msLeft = expiresAt - Date.now();
+                statusHtml += msLeft > 0
+                    ? ` Rotates every ${hours}h — expires in ${formatDuration(msLeft)}.`
+                    : ` This key has expired — it will refresh next time someone visits the Get-Key link.`;
+            } else if (data.keyRotation) {
+                statusHtml += ` Rotation is on but hasn't generated a timestamp yet — save or regenerate to start the clock.`;
+            } else {
+                statusHtml += ` Rotation is off, so it stays valid until you change it.`;
+            }
+            statusHtml += '</p>';
+            keysystemStatus.innerHTML = statusHtml;
+        } catch (err) {
+            keysystemStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red"></i><p>Couldn't load live status: ${escapeHtml(friendlyAuthError(err))}</p>`;
+        }
+    }
+
+    function renderBoundUsers(boundUsers) {
+        if (!boundUsers.length) {
+            boundUsersList.innerHTML = '<div class="info-box"><p>No accounts have used this key yet.</p></div>';
+            return;
+        }
+        boundUsersList.innerHTML = '';
+        boundUsers.forEach(u => {
+            const row = document.createElement('div');
+            row.className = 'manage-user-row';
+            row.innerHTML = `
+                <div class="manage-user-info">
+                    <span class="manage-user-name"><i class="fa-solid fa-user text-cyan"></i> ${escapeHtml(u.username || 'Unknown')}</span>
+                    <span class="manage-user-meta">UserId: ${escapeHtml(String(u.userId))} • ${escapeHtml(timeAgo(u.boundAt))}</span>
+                </div>
+                <button class="btn-danger kick-user-btn"><i class="fa-solid fa-user-slash"></i> Kick</button>
+            `;
+            row.querySelector('.kick-user-btn').addEventListener('click', () => kickBoundUser(u.userId));
+            boundUsersList.appendChild(row);
+        });
+    }
+
+    async function kickBoundUser(userId) {
+        if (!activeVaultId.value) return;
+        const confirmed = await customConfirm({
+            title: 'Kick this account?',
+            message: 'They will need to use the key again from scratch, and it only works if a slot is free.',
+            confirmLabel: 'Kick'
+        });
+        if (!confirmed) return;
+        try {
+            const snap = await getDoc(doc(db, "vaults", activeVaultId.value));
+            if (!snap.exists()) return;
+            const data = snap.data();
+            const updated = (Array.isArray(data.boundUsers) ? data.boundUsers : [])
+                .filter(u => String(u.userId) !== String(userId));
+            await updateDoc(doc(db, "vaults", activeVaultId.value), { boundUsers: updated });
+            renderBoundUsers(updated);
+            showToast('Account kicked — their slot is free again.', 'success');
+        } catch (err) {
+            showToast('Failed to kick account: ' + friendlyAuthError(err), 'error');
+        }
+    }
+
+    resetUsersBtn.addEventListener('click', async () => {
+        if (!activeVaultId.value) return;
+        const confirmed = await customConfirm({
+            title: 'Reset all bound accounts?',
+            message: 'Everyone currently bound to this key gets removed. They can use the key again as if for the first time.',
+            confirmLabel: 'Reset All'
+        });
+        if (!confirmed) return;
+        try {
+            await updateDoc(doc(db, "vaults", activeVaultId.value), { boundUsers: [] });
+            renderBoundUsers([]);
+            showToast('All bound accounts have been reset.', 'success');
+        } catch (err) {
+            showToast('Failed to reset accounts: ' + friendlyAuthError(err), 'error');
+        }
+    });
+
+    resetIpBtn.addEventListener('click', async () => {
+        if (!activeVaultId.value) return;
+        const confirmed = await customConfirm({
+            title: 'Reset the bound IP?',
+            message: 'The next person to use this key will lock it to their IP instead.',
+            confirmLabel: 'Reset IP'
+        });
+        if (!confirmed) return;
+        try {
+            await updateDoc(doc(db, "vaults", activeVaultId.value), { boundIp: null });
+            showToast('Bound IP reset.', 'success');
+            refreshKeysystemStatus();
+        } catch (err) {
+            showToast('Failed to reset IP: ' + friendlyAuthError(err), 'error');
+        }
+    });
+
+    extendKeyBtn.addEventListener('click', async () => {
+        if (!activeVaultId.value) {
+            showToast('Save this vault first, then you can extend its key.', 'info');
+            return;
+        }
+        const originalHtml = extendKeyBtn.innerHTML;
+        extendKeyBtn.disabled = true;
+        extendKeyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            await updateDoc(doc(db, "vaults", activeVaultId.value), { keyGeneratedAt: Date.now() });
+            showToast('Expiry extended — same key, fresh timer.', 'success');
+            refreshKeysystemStatus();
+        } catch (err) {
+            showToast('Failed to extend: ' + friendlyAuthError(err), 'error');
+        } finally {
+            extendKeyBtn.disabled = false;
+            extendKeyBtn.innerHTML = originalHtml;
+        }
+    });
+
+    function timeAgo(ts) {
+        const diffMs = Date.now() - ts;
+        const mins = Math.floor(diffMs / 60000);
+        if (mins < 1) return 'moments ago';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.floor(hrs / 24)}d ago`;
+    }
+
+    function formatDuration(ms) {
+        const totalMins = Math.floor(ms / 60000);
+        const h = Math.floor(totalMins / 60);
+        const m = totalMins % 60;
+        return `${h}h ${m}m`;
+    }
+
+    openKeysystemBtn.addEventListener('click', () => {
+        keysystemModal.classList.remove('hidden');
+        refreshKeysystemStatus();
+    });
+
+    function closeKeysystemModal() {
+        keysystemModal.classList.add('hidden');
+    }
+    keysystemCloseX.addEventListener('click', closeKeysystemModal);
+    keysystemCloseBtn.addEventListener('click', closeKeysystemModal);
+    keysystemModal.addEventListener('click', (e) => { if (e.target === keysystemModal) closeKeysystemModal(); });
+
+    keysystemApplyBtn.addEventListener('click', async () => {
+        if (chkKeySystem.checked && !scriptKey.value.trim()) {
+            showToast('Enter or generate a key first.', 'error');
+            scriptKey.focus();
+            return;
+        }
+
+        const requireKey = chkKeySystem.checked;
+        const key = scriptKey.value.trim();
+        const keyRotation = requireKey && chkKeyRotation.checked;
+        const keyRotationHours = parseInt(keyRotationHoursSelect.value, 10) || 24;
+        const ipLock = requireKey && chkIpLock.checked;
+        const accountBinding = requireKey && chkAccountBinding.checked;
+        const maxUsers = Math.max(1, parseInt(maxUsersInput.value, 10) || 1);
+
+        updateKeysystemBadge();
+
+        if (!activeVaultId.value) {
+            // New/unsaved vault — just keep these values in the form for the next full Save.
+            closeKeysystemModal();
+            showToast('Key settings will apply when you save this vault.', 'info', 3000);
+            return;
+        }
+
+        const originalHtml = keysystemApplyBtn.innerHTML;
+        keysystemApplyBtn.disabled = true;
+        keysystemApplyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Applying...';
+
+        try {
+            const vaultId = activeVaultId.value;
+            const existingSnap = await getDoc(doc(db, "vaults", vaultId));
+            const existing = existingSnap.exists() ? existingSnap.data() : {};
+
+            let keyGeneratedAt = existing.keyGeneratedAt || Date.now();
+            const settingsChanged = existing.key !== key || !!existing.keyRotation !== keyRotation || (existing.keyRotationHours || 24) !== keyRotationHours;
+            if (settingsChanged || !existing.keyGeneratedAt) {
+                keyGeneratedAt = Date.now();
+            }
+
+            // Turning a binding feature OFF clears its stored state; turning it on or
+            // leaving it on preserves whatever's already bound.
+            const boundIp = ipLock ? (existing.boundIp || null) : null;
+            const boundUsers = accountBinding ? (Array.isArray(existing.boundUsers) ? existing.boundUsers : []) : [];
+
+            await updateDoc(doc(db, "vaults", vaultId), {
+                requireKey, key, keyRotation, keyRotationHours,
+                keyGeneratedAt: requireKey ? keyGeneratedAt : null,
+                ipLock, boundIp,
+                accountBinding, maxUsers, boundUsers
+            });
+
+            // Reflect changes in the loadstring/get-key display without a full page reload.
+            const keyParam = requireKey && key ? `&key=${encodeURIComponent(key)}` : '';
+            lsOutput.value = `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${vaultId}${keyParam}"))()`;
+            if (requireKey) {
+                getKeyOutput.value = `${window.location.origin}/key.html?id=${vaultId}`;
+                getKeyRow.classList.remove('hidden');
+            } else {
+                getKeyRow.classList.add('hidden');
+            }
+            resultOverlay.classList.remove('hidden');
+
+            showToast('Key settings updated!', 'success');
+            await refreshKeysystemStatus();
+            loadUserVaults();
+        } catch (err) {
+            showToast('Failed to update key settings: ' + friendlyAuthError(err), 'error', 6000);
+        } finally {
+            keysystemApplyBtn.disabled = false;
+            keysystemApplyBtn.innerHTML = originalHtml;
+        }
     });
 
     // Auth Elements
@@ -429,6 +758,12 @@ document.addEventListener('DOMContentLoaded', () => {
         scriptKey.value = data.key || '';
         keySystemFields.classList.toggle('hidden', !data.requireKey);
         chkKeyRotation.checked = !!data.keyRotation;
+        keyRotationHoursSelect.value = String(data.keyRotationHours || 24);
+        chkIpLock.checked = !!data.ipLock;
+        chkAccountBinding.checked = !!data.accountBinding;
+        accountBindingFields.classList.toggle('hidden', !data.accountBinding);
+        maxUsersInput.value = data.maxUsers || 1;
+        updateKeysystemBadge();
         editingIndicator.classList.remove('hidden');
         deleteBtn.classList.remove('hidden');
 
@@ -495,21 +830,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const requireKey = chkKeySystem.checked;
         const key = scriptKey.value.trim();
         const keyRotation = requireKey && chkKeyRotation.checked;
+        const keyRotationHours = parseInt(keyRotationHoursSelect.value, 10) || 24;
+        const ipLock = requireKey && chkIpLock.checked;
+        const accountBinding = requireKey && chkAccountBinding.checked;
+        const maxUsers = Math.max(1, parseInt(maxUsersInput.value, 10) || 1);
         const vaultId = activeVaultId.value || ('vx_' + Math.random().toString(36).substring(2, 10));
 
         let currentExecutions = 0;
         let keyGeneratedAt = Date.now();
+        let boundIp = null;
+        let boundUsers = [];
         if (activeVaultId.value) {
             try {
                 const docSnap = await getDoc(doc(db, "vaults", vaultId));
                 if (docSnap.exists()) {
                     const existing = docSnap.data();
                     currentExecutions = existing.executions || 0;
-                    // Only reset the rotation timer if the key or rotation setting actually changed —
+                    // Only reset the rotation timer if the key/rotation settings actually changed —
                     // otherwise re-saving unrelated edits (like the script code) shouldn't extend it.
-                    if (existing.key === key && !!existing.keyRotation === keyRotation && existing.keyGeneratedAt) {
+                    const unchanged = existing.key === key && !!existing.keyRotation === keyRotation &&
+                        (existing.keyRotationHours || 24) === keyRotationHours && existing.keyGeneratedAt;
+                    if (unchanged) {
                         keyGeneratedAt = existing.keyGeneratedAt;
                     }
+                    // Preserve live binding state across unrelated resaves; only cleared when the
+                    // owner explicitly turns the feature off or uses the Reset buttons.
+                    if (ipLock) boundIp = existing.boundIp || null;
+                    if (accountBinding) boundUsers = Array.isArray(existing.boundUsers) ? existing.boundUsers : [];
                 }
             } catch (e) {}
         }
@@ -521,7 +868,13 @@ document.addEventListener('DOMContentLoaded', () => {
             requireKey: requireKey,
             key: key,
             keyRotation: keyRotation,
+            keyRotationHours: keyRotationHours,
             keyGeneratedAt: requireKey ? keyGeneratedAt : null,
+            ipLock: ipLock,
+            boundIp: boundIp,
+            accountBinding: accountBinding,
+            maxUsers: maxUsers,
+            boundUsers: boundUsers,
             executions: currentExecutions,
             uid: currentUser ? currentUser.uid : 'guest',
             updatedAt: Date.now()
@@ -591,6 +944,12 @@ document.addEventListener('DOMContentLoaded', () => {
         scriptKey.value = '';
         chkKeySystem.checked = false;
         chkKeyRotation.checked = false;
+        keyRotationHoursSelect.value = '24';
+        chkIpLock.checked = false;
+        chkAccountBinding.checked = false;
+        accountBindingFields.classList.add('hidden');
+        maxUsersInput.value = 1;
+        updateKeysystemBadge();
         keySystemFields.classList.add('hidden');
         editingIndicator.classList.add('hidden');
         deleteBtn.classList.add('hidden');

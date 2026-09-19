@@ -102,7 +102,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const ROTATION_MS = 24 * 60 * 60 * 1000;
+        const HOUR_MS = 60 * 60 * 1000;
 
         const loadingState = document.getElementById('loading-state');
         const errorState = document.getElementById('error-state');
@@ -202,6 +202,7 @@
                     return;
                 }
                 getkeyTitle.innerHTML = `Get Your Key — <span class="text-cyan">${escapeHtml(data.title || 'Untitled Vault')}</span>`;
+                rotationTag.innerHTML = `<i class="fa-solid fa-rotate"></i> Rotates every ${data.keyRotationHours || 24}h`;
                 rotationTag.classList.toggle('hidden', !data.keyRotation);
                 showOnly(getkeyState);
             } catch (err) {
@@ -243,7 +244,8 @@
                 }
                 const data = snap.data();
                 const now = Date.now();
-                const expired = data.keyRotation && (!data.keyGeneratedAt || (now - data.keyGeneratedAt > ROTATION_MS));
+                const rotationMs = (data.keyRotationHours || 24) * HOUR_MS;
+                const expired = data.keyRotation && (!data.keyGeneratedAt || (now - data.keyGeneratedAt > rotationMs));
 
                 let activeKey = data.key;
                 let generatedAt = data.keyGeneratedAt || now;
@@ -260,7 +262,7 @@
 
                 if (data.keyRotation) {
                     expiryTag.classList.remove('hidden');
-                    startCountdown(generatedAt + ROTATION_MS);
+                    startCountdown(generatedAt + rotationMs);
                 } else {
                     expiryTag.classList.add('hidden');
                 }
