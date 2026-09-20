@@ -110,11 +110,35 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .keysystem-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--bg-panel); color: var(--text-muted); }
 .keysystem-badge.on { background: var(--cyan); color: #04202a; }
 
-.keysystem-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; max-width: 460px; width: 90%; max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; position: relative; }
+.keysystem-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px; padding: 28px; max-width: 720px; width: 94vw; max-height: 92vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+@media (min-width: 900px) { .keysystem-card { width: 88vw; max-width: 820px; } }
+
+.keys-list { display: flex; flex-direction: column; gap: 14px; }
+.key-card {
+    background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 10px;
+    padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    transition: border-color 0.2s ease;
+}
+.key-card:hover { border-color: rgba(6, 182, 212, 0.4); }
+.key-card-header { display: flex; gap: 8px; align-items: center; }
+.key-card-header .key-label-input { flex: 1; font-weight: 700; }
+.key-card-header .key-delete-btn { flex-shrink: 0; padding: 8px 12px; width: auto; }
+.key-card-status { font-size: 11px; color: var(--text-muted); margin: 0; }
 .keysystem-enable-row { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; }
 .keysystem-key-actions { display: flex; gap: 8px; margin-top: 8px; }
 .keysystem-key-actions button { flex: 1; }
 .keysystem-status p { margin: 0; }
+
+/* ---------- Get-Key page (key.html) multi-key cards ---------- */
+.keys-page-stack { max-width: 560px; width: 100%; }
+.keys-page-wrap { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+.keys-page-header { text-align: center; }
+.keys-cards-list { display: flex; flex-direction: column; gap: 16px; }
+.key-page-card { text-align: left; align-items: stretch; }
+.key-page-card-title { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.adgate-step { display: flex; flex-direction: column; gap: 10px; background: var(--bg-panel); border: 1px dashed rgba(6, 182, 212, 0.4); border-radius: 8px; padding: 14px; }
+.adgate-text { font-size: 12px; color: var(--text-muted); margin: 0; }
+.adgate-link, .adgate-continue-btn { display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
 #ip-lock-status p, #ip-lock-status { margin: 0; }
 .manage-user-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; margin: 10px 0; }
 .manage-user-row { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -294,6 +318,10 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .btn-primary, .btn-ghost, .btn-danger { transition: opacity 0.15s; }
 
 /* ---------- Mobile fixes ---------- */
+@media (max-width: 768px) {
+    .editor-stage { min-height: 420px; }
+}
+
 @media (max-width: 480px) {
     .input-field, textarea, .password-field input, .line-numbers { font-size: 16px; }
     .top-nav { flex-wrap: wrap; height: auto; min-height: 56px; padding: 8px 12px; gap: 8px; }

@@ -158,11 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const chkBackup = document.getElementById('chk-backup');
     const chkKeySystem = document.getElementById('chk-key-system');
     const keySystemFields = document.getElementById('key-system-fields');
-    const scriptKey = document.getElementById('script-key');
-    const generateKeyBtn = document.getElementById('generate-key-btn');
-    const chkKeyRotation = document.getElementById('chk-key-rotation');
-    const keyRotationHoursSelect = document.getElementById('key-rotation-hours');
-    const forceRegenerateBtn = document.getElementById('force-regenerate-btn');
+    const keysList = document.getElementById('keys-list');
+    const keysCountBadge = document.getElementById('keys-count-badge');
+    const addKeyBtn = document.getElementById('add-key-btn');
+    const keyRowTemplate = document.getElementById('key-row-template');
     const keysystemStatus = document.getElementById('keysystem-status');
     const keysystemGetKeyOutput = document.getElementById('keysystem-get-key-output');
     const keysystemCopyKeyLinkBtn = document.getElementById('keysystem-copy-key-link-btn');
@@ -172,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const keysystemCloseX = document.getElementById('keysystem-close-x');
     const keysystemCloseBtn = document.getElementById('keysystem-close-btn');
     const keysystemApplyBtn = document.getElementById('keysystem-apply-btn');
-    const extendKeyBtn = document.getElementById('extend-key-btn');
     const chkIpLock = document.getElementById('chk-ip-lock');
     const ipLockStatus = document.getElementById('ip-lock-status');
     const ipLockStatusText = document.getElementById('ip-lock-status-text');
@@ -208,26 +206,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Key System Toggle
+    let currentKeys = []; // in-memory array of key objects for the vault being edited
+
     chkKeySystem.addEventListener('change', () => {
         keySystemFields.classList.toggle('hidden', !chkKeySystem.checked);
         updateKeysystemBadge();
     });
-    chkKeyRotation.addEventListener('change', updateKeysystemBadge);
 
     function updateKeysystemBadge() {
-        if (chkKeySystem.checked) {
-            keysystemStatusBadge.textContent = chkKeyRotation.checked
-                ? `ON · ${keyRotationHoursSelect.value}h rotation`
-                : 'ON';
+        if (chkKeySystem.checked && currentKeys.length > 0) {
+            const rotatingCount = currentKeys.filter(k => k.rotation).length;
+            keysystemStatusBadge.textContent = rotatingCount > 0
+                ? `ON · ${currentKeys.length} key${currentKeys.length > 1 ? 's' : ''} · ${rotatingCount} rotating`
+                : `ON · ${currentKeys.length} key${currentKeys.length > 1 ? 's' : ''}`;
             keysystemStatusBadge.classList.remove('hidden');
             keysystemStatusBadge.classList.add('on');
         } else {
             keysystemStatusBadge.textContent = 'OFF';
             keysystemStatusBadge.classList.remove('on');
-            keysystemStatusBadge.classList.toggle('hidden', true);
+            keysystemStatusBadge.classList.add('hidden');
         }
+        keysCountBadge.textContent = String(currentKeys.length);
+        keysCountBadge.classList.toggle('hidden', currentKeys.length === 0);
     }
-    keyRotationHoursSelect.addEventListener('change', updateKeysystemBadge);
+
     chkAccountBinding.addEventListener('change', () => {
         accountBindingFields.classList.toggle('hidden', !chkAccountBinding.checked);
     });
@@ -239,21 +241,103 @@ document.addEventListener('DOMContentLoaded', () => {
         return out;
     }
 
-    generateKeyBtn.addEventListener('click', () => {
-        scriptKey.value = generateRandomKey();
-        scriptKey.classList.remove('error');
-        showToast('Random key generated.', 'success', 2000);
-    });
+    function newKeyObject(label) {
+        return {
+            id: 'k_' + Math.random().toString(36).substring(2, 10),
+            label: label || (currentKeys.length === 0 ? 'Main Key' : `Key ${currentKeys.length + 1}`),
+            key: generateRandomKey(),
+            rotation: false,
+            rotationHours: 24,
+            keyGeneratedAt: Date.now(),
+            adGateUrl: ''
+        };
+    }
 
-    forceRegenerateBtn.addEventListener('click', async () => {
-        const confirmed = await customConfirm({
-            title: 'Force regenerate this key?',
-            message: 'The current key stops working immediately for anyone using it. Click "Apply Changes" after this to save it.',
-            confirmLabel: 'Regenerate'
+    function formatKeyStatus(k) {
+        if (!k.rotation) return 'No auto-rotation — this key stays valid until you change it.';
+        if (!k.keyGeneratedAt) return 'Rotation on — timer starts once you Apply.';
+        const expiresAt = k.keyGeneratedAt + k.rotationHours * 3600000;
+        const msLeft = expiresAt - Date.now();
+        return msLeft > 0
+            ? `Rotates every ${k.rotationHours}h — expires in ${formatDuration(msLeft)}.`
+            : 'This key has expired and will refresh on next Get-Key visit.';
+    }
+
+    function renderKeysList() {
+        keysList.innerHTML = '';
+        if (currentKeys.length === 0) {
+            keysList.innerHTML = '<div class="info-box"><p>No keys yet — add one below.</p></div>';
+            updateKeysystemBadge();
+            return;
+        }
+        currentKeys.forEach(k => {
+            const node = keyRowTemplate.content.firstElementChild.cloneNode(true);
+            node.dataset.keyId = k.id;
+            node.querySelector('.key-label-input').value = k.label;
+            node.querySelector('.key-value-input').value = k.key;
+            node.querySelector('.key-rotation-toggle').checked = k.rotation;
+            node.querySelector('.key-rotation-hours-select').value = String(k.rotationHours);
+            node.querySelector('.key-rotation-hours-select').classList.toggle('hidden', !k.rotation);
+            node.querySelector('.key-adgate-input').value = k.adGateUrl || '';
+            node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+
+            node.querySelector('.key-label-input').addEventListener('input', (e) => { k.label = e.target.value; });
+            node.querySelector('.key-value-input').addEventListener('input', (e) => { k.key = e.target.value; });
+            node.querySelector('.key-adgate-input').addEventListener('input', (e) => { k.adGateUrl = e.target.value.trim(); });
+            node.querySelector('.key-rotation-toggle').addEventListener('change', (e) => {
+                k.rotation = e.target.checked;
+                node.querySelector('.key-rotation-hours-select').classList.toggle('hidden', !k.rotation);
+                node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+                updateKeysystemBadge();
+            });
+            node.querySelector('.key-rotation-hours-select').addEventListener('change', (e) => {
+                k.rotationHours = parseInt(e.target.value, 10) || 24;
+                node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+                updateKeysystemBadge();
+            });
+            node.querySelector('.key-generate-btn').addEventListener('click', () => {
+                k.key = generateRandomKey();
+                node.querySelector('.key-value-input').value = k.key;
+                showToast('Random key generated.', 'success', 2000);
+            });
+            node.querySelector('.key-extend-btn').addEventListener('click', () => {
+                k.keyGeneratedAt = Date.now();
+                node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+                showToast('Timer extended — click "Apply Changes" to confirm.', 'info', 3000);
+            });
+            node.querySelector('.key-regenerate-btn').addEventListener('click', async () => {
+                const confirmed = await customConfirm({
+                    title: 'Regenerate this key?',
+                    message: 'The old key stops working once you Apply. This can\'t be undone.',
+                    confirmLabel: 'Regenerate'
+                });
+                if (!confirmed) return;
+                k.key = generateRandomKey();
+                k.keyGeneratedAt = Date.now();
+                node.querySelector('.key-value-input').value = k.key;
+                node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+                showToast('New key generated — click "Apply Changes" to confirm it.', 'info', 3500);
+            });
+            node.querySelector('.key-delete-btn').addEventListener('click', async () => {
+                const confirmed = await customConfirm({
+                    title: 'Delete this key?',
+                    message: `"${k.label || 'This key'}" will stop working once you Apply.`,
+                    confirmLabel: 'Delete'
+                });
+                if (!confirmed) return;
+                currentKeys = currentKeys.filter(item => item.id !== k.id);
+                renderKeysList();
+                showToast('Key removed — click "Apply Changes" to confirm.', 'info', 3000);
+            });
+
+            keysList.appendChild(node);
         });
-        if (!confirmed) return;
-        scriptKey.value = generateRandomKey();
-        showToast('New key generated — click "Apply Changes" to confirm it.', 'info', 3500);
+        updateKeysystemBadge();
+    }
+
+    addKeyBtn.addEventListener('click', () => {
+        currentKeys.push(newKeyObject());
+        renderKeysList();
     });
 
     copyKeyLinkBtn.addEventListener('click', () => {
@@ -272,6 +356,33 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ---------------- Key System Manager modal ----------------
+
+    function keysFromVaultData(data) {
+        if (Array.isArray(data.keys) && data.keys.length > 0) {
+            return data.keys.map(k => ({
+                id: k.id || ('k_' + Math.random().toString(36).substring(2, 10)),
+                label: k.label || 'Key',
+                key: k.key || '',
+                rotation: !!k.rotation,
+                rotationHours: k.rotationHours || 24,
+                keyGeneratedAt: k.keyGeneratedAt || null,
+                adGateUrl: k.adGateUrl || ''
+            }));
+        }
+        // Legacy single-key vaults: migrate on the fly so old data keeps working.
+        if (data.requireKey && data.key) {
+            return [{
+                id: 'k_legacy',
+                label: 'Main Key',
+                key: data.key,
+                rotation: !!data.keyRotation,
+                rotationHours: data.keyRotationHours || 24,
+                keyGeneratedAt: data.keyGeneratedAt || null,
+                adGateUrl: ''
+            }];
+        }
+        return [];
+    }
 
     async function refreshKeysystemStatus() {
         if (!activeVaultId.value) {
@@ -297,6 +408,8 @@ document.addEventListener('DOMContentLoaded', () => {
             chkAccountBinding.checked = !!data.accountBinding;
             accountBindingFields.classList.toggle('hidden', !data.accountBinding);
             maxUsersInput.value = data.maxUsers || 1;
+            currentKeys = keysFromVaultData(data);
+            renderKeysList();
 
             // IP lock status
             if (data.ipLock) {
@@ -316,26 +429,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Bound accounts list
             renderBoundUsers(Array.isArray(data.boundUsers) ? data.boundUsers : []);
 
-            if (!data.requireKey) {
-                keysystemStatus.innerHTML = '<i class="fa-solid fa-circle-info text-cyan"></i><p>Key system is currently off for this vault.</p>';
+            if (!data.requireKey || currentKeys.length === 0) {
+                keysystemStatus.innerHTML = '<i class="fa-solid fa-circle-info text-cyan"></i><p>Key system is currently off, or has no keys yet.</p>';
                 return;
             }
-            const generatedAt = data.keyGeneratedAt || null;
-            const hours = data.keyRotationHours || 24;
-            let statusHtml = `<i class="fa-solid fa-circle-check text-success"></i><p>Current key set${generatedAt ? ' ' + timeAgo(generatedAt) : ''}.`;
-            if (data.keyRotation && generatedAt) {
-                const expiresAt = generatedAt + hours * 60 * 60 * 1000;
-                const msLeft = expiresAt - Date.now();
-                statusHtml += msLeft > 0
-                    ? ` Rotates every ${hours}h — expires in ${formatDuration(msLeft)}.`
-                    : ` This key has expired — it will refresh next time someone visits the Get-Key link.`;
-            } else if (data.keyRotation) {
-                statusHtml += ` Rotation is on but hasn't generated a timestamp yet — save or regenerate to start the clock.`;
-            } else {
-                statusHtml += ` Rotation is off, so it stays valid until you change it.`;
-            }
-            statusHtml += '</p>';
-            keysystemStatus.innerHTML = statusHtml;
+            keysystemStatus.innerHTML = `<i class="fa-solid fa-circle-check text-success"></i><p>${currentKeys.length} key${currentKeys.length > 1 ? 's are' : ' is'} active. Each key card above shows its own status — visitors pick any working key from the Get-Key link below.</p>`;
         } catch (err) {
             keysystemStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red"></i><p>Couldn't load live status: ${escapeHtml(friendlyAuthError(err))}</p>`;
         }
@@ -418,26 +516,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    extendKeyBtn.addEventListener('click', async () => {
-        if (!activeVaultId.value) {
-            showToast('Save this vault first, then you can extend its key.', 'info');
-            return;
-        }
-        const originalHtml = extendKeyBtn.innerHTML;
-        extendKeyBtn.disabled = true;
-        extendKeyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        try {
-            await updateDoc(doc(db, "vaults", activeVaultId.value), { keyGeneratedAt: Date.now() });
-            showToast('Expiry extended — same key, fresh timer.', 'success');
-            refreshKeysystemStatus();
-        } catch (err) {
-            showToast('Failed to extend: ' + friendlyAuthError(err), 'error');
-        } finally {
-            extendKeyBtn.disabled = false;
-            extendKeyBtn.innerHTML = originalHtml;
-        }
-    });
-
     function timeAgo(ts) {
         const diffMs = Date.now() - ts;
         const mins = Math.floor(diffMs / 60000);
@@ -457,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     openKeysystemBtn.addEventListener('click', () => {
         keysystemModal.classList.remove('hidden');
+        renderKeysList();
         refreshKeysystemStatus();
     });
 
@@ -468,19 +547,24 @@ document.addEventListener('DOMContentLoaded', () => {
     keysystemModal.addEventListener('click', (e) => { if (e.target === keysystemModal) closeKeysystemModal(); });
 
     keysystemApplyBtn.addEventListener('click', async () => {
-        if (chkKeySystem.checked && !scriptKey.value.trim()) {
-            showToast('Enter or generate a key first.', 'error');
-            scriptKey.focus();
+        if (chkKeySystem.checked && currentKeys.length === 0) {
+            showToast('Add at least one key, or turn the key system off.', 'error');
+            return;
+        }
+        if (chkKeySystem.checked && currentKeys.some(k => !k.key.trim())) {
+            showToast('One of your keys is empty — fill it in or delete that key.', 'error');
             return;
         }
 
         const requireKey = chkKeySystem.checked;
-        const key = scriptKey.value.trim();
-        const keyRotation = requireKey && chkKeyRotation.checked;
-        const keyRotationHours = parseInt(keyRotationHoursSelect.value, 10) || 24;
         const ipLock = requireKey && chkIpLock.checked;
         const accountBinding = requireKey && chkAccountBinding.checked;
         const maxUsers = Math.max(1, parseInt(maxUsersInput.value, 10) || 1);
+        const keysPayload = requireKey ? currentKeys.map(k => ({
+            id: k.id, label: k.label.trim() || 'Key', key: k.key.trim(),
+            rotation: k.rotation, rotationHours: k.rotationHours,
+            keyGeneratedAt: k.keyGeneratedAt || Date.now(), adGateUrl: k.adGateUrl || ''
+        })) : [];
 
         updateKeysystemBadge();
 
@@ -500,26 +584,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const existingSnap = await getDoc(doc(db, "vaults", vaultId));
             const existing = existingSnap.exists() ? existingSnap.data() : {};
 
-            let keyGeneratedAt = existing.keyGeneratedAt || Date.now();
-            const settingsChanged = existing.key !== key || !!existing.keyRotation !== keyRotation || (existing.keyRotationHours || 24) !== keyRotationHours;
-            if (settingsChanged || !existing.keyGeneratedAt) {
-                keyGeneratedAt = Date.now();
-            }
-
             // Turning a binding feature OFF clears its stored state; turning it on or
             // leaving it on preserves whatever's already bound.
             const boundIp = ipLock ? (existing.boundIp || null) : null;
             const boundUsers = accountBinding ? (Array.isArray(existing.boundUsers) ? existing.boundUsers : []) : [];
 
+            // Keep a couple of legacy fields in sync too, for anything still reading the old shape.
+            const primaryKey = keysPayload[0] || null;
+
             await updateDoc(doc(db, "vaults", vaultId), {
-                requireKey, key, keyRotation, keyRotationHours,
-                keyGeneratedAt: requireKey ? keyGeneratedAt : null,
+                requireKey,
+                keys: keysPayload,
+                key: primaryKey ? primaryKey.key : '',
+                keyRotation: primaryKey ? primaryKey.rotation : false,
+                keyRotationHours: primaryKey ? primaryKey.rotationHours : 24,
+                keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
                 ipLock, boundIp,
                 accountBinding, maxUsers, boundUsers
             });
 
             // Reflect changes in the loadstring/get-key display without a full page reload.
-            const keyParam = requireKey && key ? `&key=${encodeURIComponent(key)}` : '';
+            const keyParam = primaryKey ? `&key=${encodeURIComponent(primaryKey.key)}` : '';
             lsOutput.value = `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${vaultId}${keyParam}"))()`;
             if (requireKey) {
                 getKeyOutput.value = `${window.location.origin}/key.html?id=${vaultId}`;
@@ -755,10 +840,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLineNumbers();
         clearFieldError(sourceCode, codeError);
         chkKeySystem.checked = !!data.requireKey;
-        scriptKey.value = data.key || '';
         keySystemFields.classList.toggle('hidden', !data.requireKey);
-        chkKeyRotation.checked = !!data.keyRotation;
-        keyRotationHoursSelect.value = String(data.keyRotationHours || 24);
+        currentKeys = keysFromVaultData(data);
+        renderKeysList();
         chkIpLock.checked = !!data.ipLock;
         chkAccountBinding.checked = !!data.accountBinding;
         accountBindingFields.classList.toggle('hidden', !data.accountBinding);
@@ -820,39 +904,37 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (chkKeySystem.checked && !scriptKey.value.trim()) {
-            showToast('Key system is enabled but no key was set — add one or turn it off.', 'error');
-            scriptKey.focus();
+        if (chkKeySystem.checked && currentKeys.length === 0) {
+            showToast('Key system is enabled but no keys were added — add one or turn it off.', 'error');
+            return;
+        }
+        if (chkKeySystem.checked && currentKeys.some(k => !k.key.trim())) {
+            showToast('One of your keys is empty — fill it in or delete that key.', 'error');
             return;
         }
 
         const title = scriptTitle.value.trim() || 'Untitled Vault';
         const requireKey = chkKeySystem.checked;
-        const key = scriptKey.value.trim();
-        const keyRotation = requireKey && chkKeyRotation.checked;
-        const keyRotationHours = parseInt(keyRotationHoursSelect.value, 10) || 24;
         const ipLock = requireKey && chkIpLock.checked;
         const accountBinding = requireKey && chkAccountBinding.checked;
         const maxUsers = Math.max(1, parseInt(maxUsersInput.value, 10) || 1);
         const vaultId = activeVaultId.value || ('vx_' + Math.random().toString(36).substring(2, 10));
 
         let currentExecutions = 0;
-        let keyGeneratedAt = Date.now();
         let boundIp = null;
         let boundUsers = [];
+        let keysPayload = requireKey ? currentKeys.map(k => ({
+            id: k.id, label: k.label.trim() || 'Key', key: k.key.trim(),
+            rotation: k.rotation, rotationHours: k.rotationHours,
+            keyGeneratedAt: k.keyGeneratedAt || Date.now(), adGateUrl: k.adGateUrl || ''
+        })) : [];
+
         if (activeVaultId.value) {
             try {
                 const docSnap = await getDoc(doc(db, "vaults", vaultId));
                 if (docSnap.exists()) {
                     const existing = docSnap.data();
                     currentExecutions = existing.executions || 0;
-                    // Only reset the rotation timer if the key/rotation settings actually changed —
-                    // otherwise re-saving unrelated edits (like the script code) shouldn't extend it.
-                    const unchanged = existing.key === key && !!existing.keyRotation === keyRotation &&
-                        (existing.keyRotationHours || 24) === keyRotationHours && existing.keyGeneratedAt;
-                    if (unchanged) {
-                        keyGeneratedAt = existing.keyGeneratedAt;
-                    }
                     // Preserve live binding state across unrelated resaves; only cleared when the
                     // owner explicitly turns the feature off or uses the Reset buttons.
                     if (ipLock) boundIp = existing.boundIp || null;
@@ -861,15 +943,18 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {}
         }
 
+        const primaryKey = keysPayload[0] || null;
+
         const payload = {
             id: vaultId,
             title: title,
             code: code,
             requireKey: requireKey,
-            key: key,
-            keyRotation: keyRotation,
-            keyRotationHours: keyRotationHours,
-            keyGeneratedAt: requireKey ? keyGeneratedAt : null,
+            keys: keysPayload,
+            key: primaryKey ? primaryKey.key : '',
+            keyRotation: primaryKey ? primaryKey.rotation : false,
+            keyRotationHours: primaryKey ? primaryKey.rotationHours : 24,
+            keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
             ipLock: ipLock,
             boundIp: boundIp,
             accountBinding: accountBinding,
@@ -941,10 +1026,9 @@ document.addEventListener('DOMContentLoaded', () => {
         scriptTitle.value = '';
         sourceCode.value = '';
         updateLineNumbers();
-        scriptKey.value = '';
         chkKeySystem.checked = false;
-        chkKeyRotation.checked = false;
-        keyRotationHoursSelect.value = '24';
+        currentKeys = [];
+        renderKeysList();
         chkIpLock.checked = false;
         chkAccountBinding.checked = false;
         accountBindingFields.classList.add('hidden');

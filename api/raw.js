@@ -49,29 +49,41 @@ export default async function handler(req, res) {
         }
 
         const vaultData = docSnap.data();
-        const rotationHours = vaultData.keyRotationHours || 24;
-        const ROTATION_MS = rotationHours * 60 * 60 * 1000;
+
+        // Multi-key support, with a fallback that migrates legacy single-key vaults on the fly.
+        const keysList = getVaultKeys(vaultData);
 
         // Key verification check
         if (vaultData.requireKey) {
-            const expired = vaultData.keyRotation && vaultData.keyGeneratedAt &&
-                (Date.now() - vaultData.keyGeneratedAt > ROTATION_MS);
-
-            if (expired) {
-                return res.status(403).send(`
--- [VOIDEDX SECURITY ALERT]
--- This key has expired (rotates every ${rotationHours}h).
--- Get the current key at: ${getOrigin(req)}/key.html?id=${id}
-error("[VoidedX] Key expired! Get a new one at ${getOrigin(req)}/key.html?id=${id}", 2)
-                `);
-            }
-
-            if (!key || key !== vaultData.key) {
+            if (!key) {
                 return res.status(403).send(`
 -- [VOIDEDX SECURITY ALERT]
 -- Key protection is enabled for this script.
 -- Invalid or missing key parameter.
 error("[VoidedX] Invalid Key Provided!", 2)
+                `);
+            }
+
+            const matched = keysList.find(k => k.key === key);
+            if (!matched) {
+                return res.status(403).send(`
+-- [VOIDEDX SECURITY ALERT]
+-- Key protection is enabled for this script.
+-- Invalid or missing key parameter.
+error("[VoidedX] Invalid Key Provided!", 2)
+                `);
+            }
+
+            const rotationMs = (matched.rotationHours || 24) * 60 * 60 * 1000;
+            const expired = matched.rotation && matched.keyGeneratedAt &&
+                (Date.now() - matched.keyGeneratedAt > rotationMs);
+
+            if (expired) {
+                return res.status(403).send(`
+-- [VOIDEDX SECURITY ALERT]
+-- This key has expired (rotates every ${matched.rotationHours || 24}h).
+-- Get the current key at: ${getOrigin(req)}/key.html?id=${id}
+error("[VoidedX] Key expired! Get a new one at ${getOrigin(req)}/key.html?id=${id}", 2)
                 `);
             }
         }
@@ -152,6 +164,22 @@ function getClientIp(req) {
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) return forwarded.split(',')[0].trim();
     return req.socket && req.socket.remoteAddress ? req.socket.remoteAddress : 'unknown';
+}
+
+function getVaultKeys(vaultData) {
+    if (Array.isArray(vaultData.keys) && vaultData.keys.length > 0) {
+        return vaultData.keys;
+    }
+    // Legacy single-key vaults that haven't been resaved under the new system yet.
+    if (vaultData.key) {
+        return [{
+            key: vaultData.key,
+            rotation: !!vaultData.keyRotation,
+            rotationHours: vaultData.keyRotationHours || 24,
+            keyGeneratedAt: vaultData.keyGeneratedAt || null
+        }];
+    }
+    return [];
 }
 
 function luaString(str) {

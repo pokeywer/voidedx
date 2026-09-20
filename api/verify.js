@@ -19,6 +19,21 @@ function json(res, status, body) {
     return res.status(status).json(body);
 }
 
+function getVaultKeys(vaultData) {
+    if (Array.isArray(vaultData.keys) && vaultData.keys.length > 0) {
+        return vaultData.keys;
+    }
+    if (vaultData.key) {
+        return [{
+            key: vaultData.key,
+            rotation: !!vaultData.keyRotation,
+            rotationHours: vaultData.keyRotationHours || 24,
+            keyGeneratedAt: vaultData.keyGeneratedAt || null
+        }];
+    }
+    return [];
+}
+
 export default async function handler(req, res) {
     const { id, key, userId, username } = req.query;
 
@@ -42,9 +57,17 @@ export default async function handler(req, res) {
 
         // Re-check the key here too — this endpoint is public on its own, and this
         // also naturally enforces rotation: an old loader with a stale baked-in key
-        // will fail here once the key has rotated.
-        if (!key || key !== vault.key) {
+        // will fail here once that specific key has rotated.
+        const keysList = getVaultKeys(vault);
+        const matched = keysList.find(k => k.key === key);
+        if (!key || !matched) {
             return json(res, 403, { ok: false, message: 'Invalid or expired key.' });
+        }
+        const rotationMs = (matched.rotationHours || 24) * 60 * 60 * 1000;
+        const expired = matched.rotation && matched.keyGeneratedAt &&
+            (Date.now() - matched.keyGeneratedAt > rotationMs);
+        if (expired) {
+            return json(res, 403, { ok: false, message: 'This key has expired. Get a fresh one from the Get-Key link.' });
         }
 
         if (!vault.accountBinding) {
