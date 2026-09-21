@@ -102,7 +102,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-        import { getFirestore, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
@@ -155,23 +155,35 @@
             return out;
         }
 
+        // Only allow http(s) links as ad-gate targets — blocks javascript: URI injection
+        // and similar schemes from ever becoming a clickable href.
+        function isSafeUrl(url) {
+            if (!url || typeof url !== 'string') return false;
+            try {
+                const parsed = new URL(url, window.location.origin);
+                return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            } catch {
+                return false;
+            }
+        }
+
         function getVaultKeys(data) {
             if (Array.isArray(data.keys) && data.keys.length > 0) return data.keys;
             if (data.requireKey && data.key) {
                 return [{
-                    id: 'k_legacy', label: 'Main Key', key: data.key,
-                    rotation: !!data.keyRotation, rotationHours: data.keyRotationHours || 24,
-                    keyGeneratedAt: data.keyGeneratedAt || null, adGateUrl: ''
+                    id: 'k_legacy', label: 'Main Key', key: data.key, priority: 1,
+                    durationDays: null, keyGeneratedAt: data.keyGeneratedAt || null,
+                    maxUsersUnlimited: true, terminated: false, adGateUrl: '', visibility: 'public'
                 }];
             }
             return [];
         }
 
         function formatCountdown(msLeft) {
-            if (msLeft <= 0) return 'expired — click Get Key again';
-            const h = Math.floor(msLeft / 3600000);
-            const m = Math.floor((msLeft % 3600000) / 60000);
-            return `Expires in ${h}h ${m}m`;
+            if (msLeft <= 0) return 'expired';
+            const d = Math.floor(msLeft / 86400000);
+            const h = Math.floor((msLeft % 86400000) / 3600000);
+            return d > 0 ? `Expires in ${d}d ${h}h` : `Expires in ${h}h`;
         }
 
         function buildLoadstring(id, key) {
@@ -197,10 +209,20 @@
                     return;
                 }
                 const data = snap.data();
-                const keysList = getVaultKeys(data);
+                const allKeys = getVaultKeys(data);
+                // Private/whitelist and terminated keys never appear here.
+                const keysList = allKeys
+                    .filter(k => k.visibility !== 'private' && !k.terminated)
+                    .sort((a, b) => (a.priority || 0) - (b.priority || 0));
 
-                if (!data.requireKey || keysList.length === 0) {
+                if (!data.requireKey || allKeys.length === 0) {
                     errorMessage.textContent = "This vault doesn't use a key system — no key is needed to run it.";
+                    showOnly(errorState);
+                    return;
+                }
+
+                if (keysList.length === 0) {
+                    errorMessage.textContent = "This vault's keys are private/whitelist-only, or all keys have been terminated. Contact the owner directly.";
                     showOnly(errorState);
                     return;
                 }
@@ -240,21 +262,9 @@
             const openVaultLink = node.querySelector('.open-vault-link');
 
             labelEl.textContent = keyDef.label || 'Key';
-            if (keyDef.rotation) {
-                rotationTag.innerHTML = `<i class="fa-solid fa-rotate"></i> Rotates every ${keyDef.rotationHours || 24}h`;
+            if (!keyDef.durationDays) {
+                rotationTag.innerHTML = `<i class="fa-solid fa-infinity"></i> Permanent`;
                 rotationTag.classList.remove('hidden');
-            }
-
-            let countdownInterval = null;
-            function startCountdown(expiresAt) {
-                if (countdownInterval) clearInterval(countdownInterval);
-                const tick = () => {
-                    const msLeft = expiresAt - Date.now();
-                    expiryText.textContent = formatCountdown(msLeft);
-                    if (msLeft <= 0) clearInterval(countdownInterval);
-                };
-                tick();
-                countdownInterval = setInterval(tick, 30000);
             }
 
             function beginReveal() {
@@ -267,7 +277,7 @@
                 let stepIndex = 0;
                 progressLabel.textContent = steps[0];
 
-                const progressInterval = setInterval(async () => {
+                const progressInterval = setInterval(() => {
                     pct += 8;
                     progressFill.style.width = Math.min(pct, 100) + '%';
                     const newStep = Math.min(Math.floor(pct / 34), steps.length - 1);
@@ -277,56 +287,38 @@
                     }
                     if (pct >= 100) {
                         clearInterval(progressInterval);
-                        await revealKey();
+                        revealKey();
                     }
                 }, 180);
             }
 
-            async function revealKey() {
-                try {
-                    const snap = await getDoc(vaultRef);
-                    if (!snap.exists()) {
-                        showToast('This vault no longer exists.', 'error');
-                        return;
-                    }
-                    const data = snap.data();
-                    const keysList = getVaultKeys(data);
-                    const fresh = keysList.find(k => k.id === keyDef.id) || keyDef;
+            function revealKey() {
+                const now = Date.now();
+                const expired = keyDef.durationDays && keyDef.keyGeneratedAt &&
+                    (now - keyDef.keyGeneratedAt > keyDef.durationDays * HOUR_MS * 24);
 
-                    const now = Date.now();
-                    const rotationMs = (fresh.rotationHours || 24) * HOUR_MS;
-                    const expired = fresh.rotation && (!fresh.keyGeneratedAt || (now - fresh.keyGeneratedAt > rotationMs));
-
-                    let activeKey = fresh.key;
-                    let generatedAt = fresh.keyGeneratedAt || now;
-
-                    if (expired) {
-                        activeKey = generateRandomKey();
-                        generatedAt = now;
-                        const updatedKeys = keysList.map(k => k.id === fresh.id ? { ...k, key: activeKey, keyGeneratedAt: generatedAt } : k);
-                        await updateDoc(vaultRef, { keys: updatedKeys, key: updatedKeys[0].key, keyGeneratedAt: updatedKeys[0].keyGeneratedAt });
-                    }
-
-                    keyOutput.value = activeKey;
-                    loadstringOutput.value = buildLoadstring(vaultId, activeKey);
-                    openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(activeKey)}`;
-
-                    if (fresh.rotation) {
-                        expiryTag.classList.remove('hidden');
-                        startCountdown(generatedAt + rotationMs);
-                    }
-
-                    loadingBlock.classList.add('hidden');
-                    readyBlock.classList.remove('hidden');
-                    showToast('Key ready — copy it below.', 'success', 2500);
-                } catch (err) {
-                    showToast('Failed to generate key: ' + err.message, 'error');
+                if (expired) {
                     loadingBlock.classList.add('hidden');
                     idleBlock.classList.remove('hidden');
+                    showToast('This key has expired. Contact the owner for a new one.', 'error', 5000);
+                    return;
                 }
+
+                keyOutput.value = keyDef.key;
+                loadstringOutput.value = buildLoadstring(vaultId, keyDef.key);
+                openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(keyDef.key)}`;
+
+                if (keyDef.durationDays && keyDef.keyGeneratedAt) {
+                    expiryTag.classList.remove('hidden');
+                    expiryText.textContent = formatCountdown((keyDef.keyGeneratedAt + keyDef.durationDays * HOUR_MS * 24) - now);
+                }
+
+                loadingBlock.classList.add('hidden');
+                readyBlock.classList.remove('hidden');
+                showToast('Key ready — copy it below.', 'success', 2500);
             }
 
-            if (keyDef.adGateUrl) {
+            if (isSafeUrl(keyDef.adGateUrl)) {
                 adgateStep.classList.remove('hidden');
                 idleBlock.classList.add('hidden');
                 adgateLink.href = keyDef.adGateUrl;

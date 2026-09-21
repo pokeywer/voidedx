@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, updateDoc, increment, runTransaction } from 'firebase/firestore';
 
 const firebaseConfig = {
     apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
@@ -20,25 +20,28 @@ function json(res, status, body) {
 }
 
 function getVaultKeys(vaultData) {
-    if (Array.isArray(vaultData.keys) && vaultData.keys.length > 0) {
-        return vaultData.keys;
-    }
+    if (Array.isArray(vaultData.keys) && vaultData.keys.length > 0) return vaultData.keys;
     if (vaultData.key) {
         return [{
-            key: vaultData.key,
-            rotation: !!vaultData.keyRotation,
-            rotationHours: vaultData.keyRotationHours || 24,
-            keyGeneratedAt: vaultData.keyGeneratedAt || null
+            id: 'k_legacy', key: vaultData.key, durationDays: null,
+            keyGeneratedAt: vaultData.keyGeneratedAt || null,
+            maxUsers: 1, maxUsersUnlimited: true, boundUsers: [], terminated: false
         }];
     }
     return [];
 }
 
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+    return req.socket && req.socket.remoteAddress ? req.socket.remoteAddress : 'unknown';
+}
+
 export default async function handler(req, res) {
     const { id, key, userId, username } = req.query;
 
-    if (!id || !userId) {
-        return json(res, 400, { ok: false, message: 'Missing id or userId.' });
+    if (!id || !key) {
+        return json(res, 400, { ok: false, message: 'Missing id or key.' });
     }
 
     try {
@@ -55,46 +58,99 @@ export default async function handler(req, res) {
             return json(res, 200, { ok: true, code: vault.code });
         }
 
-        // Re-check the key here too — this endpoint is public on its own, and this
-        // also naturally enforces rotation: an old loader with a stale baked-in key
-        // will fail here once that specific key has rotated.
+        const uidStr = userId ? String(userId) : null;
+
+        // Ban check — vault-wide, blocks a Roblox account from using ANY key here.
+        if (uidStr) {
+            const banned = (Array.isArray(vault.bannedUsers) ? vault.bannedUsers : [])
+                .find(b => String(b.userId) === uidStr);
+            if (banned && (banned.bannedUntil == null || banned.bannedUntil > Date.now())) {
+                const untilMsg = banned.bannedUntil
+                    ? `until ${new Date(banned.bannedUntil).toLocaleString()}`
+                    : 'permanently';
+                return json(res, 403, { ok: false, message: `You are banned from this vault ${untilMsg}.` });
+            }
+        }
+
         const keysList = getVaultKeys(vault);
         const matched = keysList.find(k => k.key === key);
-        if (!key || !matched) {
-            return json(res, 403, { ok: false, message: 'Invalid or expired key.' });
-        }
-        const rotationMs = (matched.rotationHours || 24) * 60 * 60 * 1000;
-        const expired = matched.rotation && matched.keyGeneratedAt &&
-            (Date.now() - matched.keyGeneratedAt > rotationMs);
-        if (expired) {
-            return json(res, 403, { ok: false, message: 'This key has expired. Get a fresh one from the Get-Key link.' });
-        }
 
-        if (!vault.accountBinding) {
-            return json(res, 200, { ok: true, code: vault.code });
+        if (!matched) {
+            return json(res, 403, { ok: false, message: 'Invalid key.' });
         }
-
-        const maxUsers = Number.isFinite(vault.maxUsers) && vault.maxUsers > 0 ? vault.maxUsers : 1;
-        const boundUsers = Array.isArray(vault.boundUsers) ? vault.boundUsers : [];
-        const uidStr = String(userId);
-        const existing = boundUsers.find(u => String(u.userId) === uidStr);
-
-        if (existing) {
-            return json(res, 200, { ok: true, code: vault.code });
+        if (matched.terminated) {
+            return json(res, 403, { ok: false, message: 'This key has been terminated by the owner.' });
+        }
+        if (matched.durationDays) {
+            const expiresAt = (matched.keyGeneratedAt || 0) + matched.durationDays * 86400000;
+            if (Date.now() > expiresAt) {
+                return json(res, 403, { ok: false, message: 'This key has expired.' });
+            }
         }
 
-        if (boundUsers.length >= maxUsers) {
-            return json(res, 403, {
-                ok: false,
-                message: `This key is already in use by the maximum number of accounts (${maxUsers}). Ask the vault owner to reset or raise the limit.`
+        // IP lock — vault-wide, atomic so two IPs can't both "win" the bind.
+        if (vault.ipLock) {
+            const clientIp = getClientIp(req);
+            try {
+                const ipResult = await runTransaction(db, async (tx) => {
+                    const freshSnap = await tx.get(vaultRef);
+                    if (!freshSnap.exists()) return { ok: true };
+                    const freshData = freshSnap.data();
+                    if (!freshData.boundIp) {
+                        tx.update(vaultRef, { boundIp: clientIp });
+                        return { ok: true };
+                    }
+                    return { ok: freshData.boundIp === clientIp };
+                });
+                if (!ipResult.ok) {
+                    return json(res, 403, { ok: false, message: 'This key is locked to a different network/IP.' });
+                }
+            } catch (e) {}
+        }
+
+        // Execution counter (best-effort, non-blocking).
+        try { await updateDoc(vaultRef, { executions: increment(1) }); } catch (e) {}
+
+        // Per-key player limit, atomic so two people can't both slip past a full cap.
+        if (uidStr) {
+            const result = await runTransaction(db, async (tx) => {
+                const freshSnap = await tx.get(vaultRef);
+                if (!freshSnap.exists()) return { ok: true, code: vault.code };
+                const freshData = freshSnap.data();
+                const freshKeys = getVaultKeys(freshData);
+                const idx = freshKeys.findIndex(k => k.key === key);
+                if (idx === -1) return { ok: false, status: 403, message: 'Invalid key.' };
+
+                const fk = freshKeys[idx];
+                const boundUsers = Array.isArray(fk.boundUsers) ? fk.boundUsers : [];
+                const existing = boundUsers.find(u => String(u.userId) === uidStr);
+
+                if (existing) {
+                    return { ok: true, code: freshData.code };
+                }
+                if (!fk.maxUsersUnlimited && boundUsers.length >= (fk.maxUsers || 1)) {
+                    return {
+                        ok: false, status: 403,
+                        message: `This key is already in use by the maximum number of players (${fk.maxUsers || 1}). Ask the vault owner to reset or raise the limit.`
+                    };
+                }
+
+                const updatedUsers = [...boundUsers, { userId: uidStr, username: username || 'Unknown', boundAt: Date.now() }];
+                const updatedKeys = [...freshKeys];
+                updatedKeys[idx] = { ...fk, boundUsers: updatedUsers };
+
+                // Only write back through the modern `keys` array shape.
+                if (Array.isArray(freshData.keys) && freshData.keys.length > 0) {
+                    tx.update(vaultRef, { keys: updatedKeys });
+                }
+                return { ok: true, code: freshData.code };
             });
-        }
 
-        const updatedUsers = [
-            ...boundUsers,
-            { userId: uidStr, username: username || 'Unknown', boundAt: Date.now() }
-        ];
-        await updateDoc(vaultRef, { boundUsers: updatedUsers });
+            if (!result.ok) {
+                return json(res, result.status || 403, { ok: false, message: result.message });
+            }
+            return json(res, 200, { ok: true, code: result.code });
+        }
 
         return json(res, 200, { ok: true, code: vault.code });
     } catch (err) {

@@ -55,7 +55,7 @@
                 <div class="panel-group">
                     <label class="panel-label">OPTIONS</label>
                     <button type="button" id="open-keysystem-btn" class="btn-ghost btn-keysystem-open">
-                        <i class="fa-solid fa-key text-cyan"></i> Key System Manager(beta)!
+                        <i class="fa-solid fa-key text-cyan"></i> Key System Manager
                         <span id="keysystem-status-badge" class="keysystem-badge hidden">OFF</span>
                     </button>
                 </div>
@@ -180,7 +180,7 @@
             </div>
 
             <label class="toggle-row keysystem-enable-row">
-                <span>Enable Key System (beta)</span>
+                <span>Enable Key System</span>
                 <input type="checkbox" id="chk-key-system">
                 <span class="switch"></span>
             </label>
@@ -190,6 +190,19 @@
                     <label class="panel-label">KEYS <span id="keys-count-badge" class="keysystem-badge on hidden">0</span></label>
                     <div id="keys-list" class="keys-list"></div>
                     <button type="button" id="add-key-btn" class="btn-ghost btn-new-vault"><i class="fa-solid fa-plus"></i> Add New Key</button>
+                </div>
+
+                <div class="panel-group">
+                    <label class="panel-label">DELIVERY METHOD</label>
+                    <label class="toggle-row">
+                        <span><i class="fa-solid fa-gamepad text-cyan"></i> In-Game Key GUI (like Luarmor/Junkie)</span>
+                        <input type="checkbox" id="chk-gui-mode">
+                        <span class="switch"></span>
+                    </label>
+                    <div class="info-box">
+                        <i class="fa-solid fa-circle-info text-cyan"></i>
+                        <p><strong>On:</strong> the loadstring has no key in it at all — a popup appears in-game (PC and mobile) asking the player to type their key. <strong>Off:</strong> the key is baked into the loadstring URL itself, like before.</p>
+                    </div>
                 </div>
 
                 <div class="panel-group">
@@ -211,21 +224,21 @@
                 </div>
 
                 <div class="panel-group">
-                    <label class="panel-label">ACCOUNT BINDING</label>
-                    <label class="toggle-row">
-                        <span><i class="fa-solid fa-user-lock text-cyan"></i> Bind Key to Roblox Account</span>
-                        <input type="checkbox" id="chk-account-binding">
-                        <span class="switch"></span>
-                    </label>
-                    <div id="account-binding-fields" class="hidden">
-                        <label class="panel-label" style="margin-top:8px; display:block;">MAX ACCOUNTS ALLOWED</label>
-                        <input type="number" id="max-users-input" class="input-field" min="1" value="1">
-                        <div class="info-box">
-                            <i class="fa-solid fa-circle-info text-cyan"></i>
-                            <p>Not a true cross-executor HWID (no such thing exists universally) — this binds to the Roblox account that first uses any key on this vault, which requires a real logged-in Roblox session and can't be casually spoofed.</p>
-                        </div>
-                        <div id="bound-users-list" class="manage-user-list"></div>
-                        <button type="button" id="reset-users-btn" class="btn-ghost"><i class="fa-solid fa-eraser"></i> Reset All Bound Accounts</button>
+                    <label class="panel-label">BANNED USERS <span class="keysystem-badge on hidden" id="banned-count-badge">0</span></label>
+                    <div class="info-box">
+                        <i class="fa-solid fa-circle-info text-cyan"></i>
+                        <p>Banning blocks a Roblox account from using <strong>any</strong> key on this vault, whether they're already bound to one or not. Only takes effect where the vault can see who's playing (account-bound or in-game GUI keys).</p>
+                    </div>
+                    <div id="banned-users-list" class="manage-user-list"></div>
+                    <div class="key-input-row">
+                        <input type="text" id="manual-ban-userid" class="input-field" placeholder="Roblox UserId to ban">
+                        <select id="manual-ban-duration" class="input-field" style="max-width:140px;">
+                            <option value="1">1 Day</option>
+                            <option value="7">7 Days</option>
+                            <option value="30">30 Days</option>
+                            <option value="permanent">Permanent</option>
+                        </select>
+                        <button type="button" id="manual-ban-btn" class="btn-danger"><i class="fa-solid fa-gavel"></i> Ban</button>
                     </div>
                 </div>
 
@@ -239,7 +252,7 @@
                     </div>
                     <div class="info-box">
                         <i class="fa-solid fa-circle-info text-cyan"></i>
-                        <p>This one link shows visitors all the keys below (each with its own timer and, if you add one, an ad-link step) — like a Linkvertise/Junkie key page.</p>
+                        <p>This one link shows visitors all your <strong>public</strong> keys below (each with its own timer and, if you add one, an ad-link step) — like a Linkvertise/Junkie key page. Private keys are never listed here.</p>
                     </div>
                 </div>
             </div>
@@ -253,6 +266,7 @@
     <template id="key-row-template">
         <div class="key-card">
             <div class="key-card-header">
+                <input type="text" class="input-field key-priority-input" title="Priority (1 = shown first)" style="max-width:52px; text-align:center; flex-shrink:0;" inputmode="numeric">
                 <input type="text" class="input-field key-label-input" placeholder="Key label (e.g. Free, VIP)" autocomplete="off">
                 <button type="button" class="btn-danger key-delete-btn" title="Delete this key"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -263,23 +277,42 @@
             <div class="keysystem-key-actions">
                 <button type="button" class="btn-accent key-extend-btn"><i class="fa-solid fa-clock"></i> Extend Time</button>
                 <button type="button" class="btn-danger key-regenerate-btn"><i class="fa-solid fa-rotate"></i> Regenerate</button>
+                <button type="button" class="btn-danger key-terminate-btn"><i class="fa-solid fa-ban"></i> Terminate</button>
             </div>
-            <label class="toggle-row key-rotation-row">
-                <span><i class="fa-solid fa-rotate text-cyan"></i> Rotate Automatically</span>
-                <input type="checkbox" class="key-rotation-toggle">
-                <span class="switch"></span>
-            </label>
-            <select class="input-field key-rotation-hours-select">
-                <option value="1">Every 1 Hour</option>
-                <option value="6">Every 6 Hours</option>
-                <option value="12">Every 12 Hours</option>
-                <option value="24">Every 24 Hours</option>
-                <option value="72">Every 3 Days</option>
-                <option value="168">Every 7 Days</option>
+
+            <label class="panel-label" style="margin-top:8px; display:block;">DURATION</label>
+            <select class="input-field key-duration-select">
+                <option value="permanent">Permanent — never expires</option>
+                <option value="1">1 Day</option>
+                <option value="3">3 Days</option>
+                <option value="7">7 Days</option>
+                <option value="14">14 Days</option>
+                <option value="30">30 Days</option>
+                <option value="custom">Custom…</option>
             </select>
-            <label class="panel-label" style="margin-top:8px; display:block;">AD-GATE LINK (OPTIONAL)</label>
+            <input type="number" class="input-field key-duration-custom" min="1" placeholder="Number of days" style="margin-top:6px;">
+
+            <label class="panel-label" style="margin-top:8px; display:block;">PLAYERS ALLOWED</label>
+            <div class="key-input-row">
+                <input type="number" class="input-field key-maxusers-input" min="1" value="1">
+                <label class="toggle-row key-unlimited-row">
+                    <span>Unlimited</span>
+                    <input type="checkbox" class="key-unlimited-toggle">
+                    <span class="switch"></span>
+                </label>
+            </div>
+
+            <label class="panel-label" style="margin-top:8px; display:block;">VISIBILITY</label>
+            <select class="input-field key-visibility-select">
+                <option value="public">Public — anyone with the vault ID can self-serve this key on the Get-Key page</option>
+                <option value="private">Private / Whitelist — hidden from the Get-Key page, you hand this key out yourself</option>
+            </select>
+            <label class="panel-label" style="margin-top:8px; display:block;">AD-GATE LINK (OPTIONAL, PUBLIC KEYS ONLY)</label>
             <input type="text" class="input-field key-adgate-input" placeholder="https://linkvertise.com/... (leave blank for no ad step)" autocomplete="off">
+
             <p class="key-card-status"></p>
+
+            <div class="key-bound-users-list"></div>
         </div>
     </template>
 

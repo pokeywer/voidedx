@@ -11,6 +11,10 @@
     --text-primary: #f8fafc;
     --text-muted: #64748b;
     --font-mono: 'Fira Code', 'Consolas', monospace;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.25);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.35);
+    --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+    --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -39,7 +43,7 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .btn-promo { background: #fff; color: #0f172a; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
 .btn-promo:hover { background: #e2e8f0; }
 
-.top-nav { height: 56px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; position: sticky; top: 0; z-index: 20; }
+.top-nav { height: 56px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; position: sticky; top: 0; z-index: 20; box-shadow: var(--shadow-sm); }
 .brand-unit { display: flex; align-items: center; gap: 12px; }
 .brand-icon { font-size: 20px; color: var(--cyan); }
 .brand-name { font-weight: 900; font-size: 15px; letter-spacing: 1px; }
@@ -158,15 +162,18 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 /* ---------- Vault.html visitor page ---------- */
 .vault-visitor-stack { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; max-width: 480px; }
 
-.btn-primary { background: linear-gradient(135deg, var(--cyan), var(--accent)); color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
-.btn-primary:hover { opacity: 0.9; }
-.btn-accent { background: var(--accent); color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
-.btn-danger { background: var(--red); color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.btn-primary { background: linear-gradient(135deg, var(--cyan), var(--accent)); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-shadow: var(--shadow-sm); transition: transform 0.2s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth), opacity 0.2s ease; }
+.btn-primary:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(6, 182, 212, 0.25); }
+.btn-primary:active { transform: translateY(0); }
+.btn-accent { background: var(--accent); color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 0.2s var(--ease-smooth), opacity 0.2s ease; }
+.btn-accent:hover { opacity: 0.92; transform: translateY(-1px); }
+.btn-danger { background: var(--red); color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 0.2s var(--ease-smooth), opacity 0.2s ease; }
+.btn-danger:hover { opacity: 0.9; transform: translateY(-1px); }
 
 .editor-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .editor-header { height: 40px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px; font-weight: 800; color: var(--text-muted); }
 .editor-header-right { display: flex; align-items: center; gap: 12px; }
-.exec-count-badge { background: var(--bg-panel); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; color: var(--text-primary); font-size: 10px; }
+.exec-count-badge { background: var(--bg-panel); border: 1px solid var(--border-color); padding: 5px 10px; border-radius: 20px; color: var(--text-primary); font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm); }
 
 textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--bg-base); border: none; color: var(--cyan); padding: 16px; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; outline: none; resize: none; white-space: pre; overflow-wrap: normal; overflow-x: auto; overflow-y: auto; }
 
@@ -208,9 +215,9 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .vault-item {
     background: var(--bg-input); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 8px;
     display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; cursor: pointer;
-    transition: border-color 0.2s ease, transform 0.15s ease, background 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.2s var(--ease-smooth), background 0.2s ease, box-shadow 0.2s ease;
 }
-.vault-item:hover { border-color: var(--cyan); background: var(--bg-panel); transform: translateX(2px); }
+.vault-item:hover { border-color: var(--cyan); background: var(--bg-panel); transform: translateX(2px); box-shadow: var(--shadow-sm); }
 .vault-item-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
 .vault-item-icon {
     width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
@@ -221,7 +228,10 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .vault-item-badge { font-size: 10px; color: var(--cyan); background: var(--bg-panel); padding: 3px 7px; border-radius: 20px; font-weight: 700; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 
 /* Auth Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: modal-fade-in 0.2s var(--ease-smooth); }
+.modal-overlay > * { animation: modal-card-in 0.25s var(--ease-smooth); }
+@keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-card-in { from { opacity: 0; transform: scale(0.97) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .auth-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; display: flex; flex-direction: column; gap: 16px; }
 .auth-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
 .auth-tab { flex: 1; background: none; border: none; color: var(--text-muted); font-weight: 700; padding: 8px; cursor: pointer; border-radius: 4px; }
@@ -243,7 +253,7 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .text-red { color: var(--red); }
 
 /* ---------- Ghost button ---------- */
-.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%; }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%; transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease-smooth); }
 .btn-new-vault { border-style: dashed; color: var(--cyan); border-color: rgba(6, 182, 212, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-new-vault:hover { background: rgba(6, 182, 212, 0.08); border-style: solid; color: var(--text-primary); border-color: var(--cyan); }
 .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-muted); }

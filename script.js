@@ -80,6 +80,18 @@ function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// Only allow http(s) links for ad-gate URLs — blocks javascript: URI injection
+// and similar schemes from ever becoming a clickable href on the Get-Key page.
+function isSafeUrl(url) {
+    if (!url) return true; // empty is fine — it just means no ad-gate step
+    try {
+        const parsed = new URL(url, window.location.origin);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
 // Translates raw Firebase Auth error codes into human, actionable copy.
 function friendlyAuthError(err) {
     const code = err && err.code ? err.code : '';
@@ -171,15 +183,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const keysystemCloseX = document.getElementById('keysystem-close-x');
     const keysystemCloseBtn = document.getElementById('keysystem-close-btn');
     const keysystemApplyBtn = document.getElementById('keysystem-apply-btn');
+    const chkGuiMode = document.getElementById('chk-gui-mode');
     const chkIpLock = document.getElementById('chk-ip-lock');
     const ipLockStatus = document.getElementById('ip-lock-status');
     const ipLockStatusText = document.getElementById('ip-lock-status-text');
     const resetIpBtn = document.getElementById('reset-ip-btn');
-    const chkAccountBinding = document.getElementById('chk-account-binding');
-    const accountBindingFields = document.getElementById('account-binding-fields');
-    const maxUsersInput = document.getElementById('max-users-input');
-    const boundUsersList = document.getElementById('bound-users-list');
-    const resetUsersBtn = document.getElementById('reset-users-btn');
+    const bannedUsersList = document.getElementById('banned-users-list');
+    const bannedCountBadge = document.getElementById('banned-count-badge');
+    const manualBanUserId = document.getElementById('manual-ban-userid');
+    const manualBanDuration = document.getElementById('manual-ban-duration');
+    const manualBanBtn = document.getElementById('manual-ban-btn');
     const activeVaultId = document.getElementById('active-vault-id');
     const editingIndicator = document.getElementById('editing-indicator');
     const vaultListContainer = document.getElementById('vault-list');
@@ -215,9 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateKeysystemBadge() {
         if (chkKeySystem.checked && currentKeys.length > 0) {
-            const rotatingCount = currentKeys.filter(k => k.rotation).length;
-            keysystemStatusBadge.textContent = rotatingCount > 0
-                ? `ON · ${currentKeys.length} key${currentKeys.length > 1 ? 's' : ''} · ${rotatingCount} rotating`
+            const terminatedCount = currentKeys.filter(k => k.terminated).length;
+            keysystemStatusBadge.textContent = terminatedCount > 0
+                ? `ON · ${currentKeys.length} key${currentKeys.length > 1 ? 's' : ''} · ${terminatedCount} terminated`
                 : `ON · ${currentKeys.length} key${currentKeys.length > 1 ? 's' : ''}`;
             keysystemStatusBadge.classList.remove('hidden');
             keysystemStatusBadge.classList.add('on');
@@ -229,10 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
         keysCountBadge.textContent = String(currentKeys.length);
         keysCountBadge.classList.toggle('hidden', currentKeys.length === 0);
     }
-
-    chkAccountBinding.addEventListener('change', () => {
-        accountBindingFields.classList.toggle('hidden', !chkAccountBinding.checked);
-    });
 
     function generateRandomKey() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -246,21 +255,42 @@ document.addEventListener('DOMContentLoaded', () => {
             id: 'k_' + Math.random().toString(36).substring(2, 10),
             label: label || (currentKeys.length === 0 ? 'Main Key' : `Key ${currentKeys.length + 1}`),
             key: generateRandomKey(),
-            rotation: false,
-            rotationHours: 24,
+            priority: currentKeys.length + 1,
+            durationDays: null, // null = permanent
             keyGeneratedAt: Date.now(),
-            adGateUrl: ''
+            maxUsers: 1,
+            maxUsersUnlimited: false,
+            boundUsers: [],
+            terminated: false,
+            adGateUrl: '',
+            visibility: 'public'
         };
     }
 
     function formatKeyStatus(k) {
-        if (!k.rotation) return 'No auto-rotation — this key stays valid until you change it.';
-        if (!k.keyGeneratedAt) return 'Rotation on — timer starts once you Apply.';
-        const expiresAt = k.keyGeneratedAt + k.rotationHours * 3600000;
-        const msLeft = expiresAt - Date.now();
-        return msLeft > 0
-            ? `Rotates every ${k.rotationHours}h — expires in ${formatDuration(msLeft)}.`
-            : 'This key has expired and will refresh on next Get-Key visit.';
+        const parts = [];
+        if (k.terminated) {
+            parts.push('TERMINATED — this key no longer works until reactivated.');
+        } else if (!k.durationDays) {
+            parts.push('Permanent — never expires on its own.');
+        } else if (!k.keyGeneratedAt) {
+            parts.push(`Set to expire ${k.durationDays} day${k.durationDays > 1 ? 's' : ''} after you Apply.`);
+        } else {
+            const expiresAt = k.keyGeneratedAt + k.durationDays * 86400000;
+            const msLeft = expiresAt - Date.now();
+            parts.push(msLeft > 0
+                ? `Expires in ${formatDuration(msLeft)}.`
+                : 'This key has expired.');
+        }
+        const boundCount = Array.isArray(k.boundUsers) ? k.boundUsers.length : 0;
+        parts.push(k.maxUsersUnlimited
+            ? `${boundCount} player${boundCount === 1 ? '' : 's'} used so far — unlimited allowed.`
+            : `${boundCount} / ${k.maxUsers} player slot${k.maxUsers === 1 ? '' : 's'} used.`);
+        return parts.join(' ');
+    }
+
+    function reactivateKey(k) {
+        k.terminated = false;
     }
 
     function renderKeysList() {
@@ -270,31 +300,80 @@ document.addEventListener('DOMContentLoaded', () => {
             updateKeysystemBadge();
             return;
         }
-        currentKeys.forEach(k => {
+        // Show higher-priority (lower number) keys first, matching the public Get-Key page order.
+        const sorted = [...currentKeys].sort((a, b) => (a.priority || 0) - (b.priority || 0));
+
+        sorted.forEach(k => {
             const node = keyRowTemplate.content.firstElementChild.cloneNode(true);
             node.dataset.keyId = k.id;
+            node.classList.toggle('key-card-terminated', !!k.terminated);
+
+            node.querySelector('.key-priority-input').value = k.priority || 1;
             node.querySelector('.key-label-input').value = k.label;
             node.querySelector('.key-value-input').value = k.key;
-            node.querySelector('.key-rotation-toggle').checked = k.rotation;
-            node.querySelector('.key-rotation-hours-select').value = String(k.rotationHours);
-            node.querySelector('.key-rotation-hours-select').classList.toggle('hidden', !k.rotation);
+            node.querySelector('.key-duration-select').value = k.durationDays ? 'custom-check' : 'permanent';
+            const durationSelect = node.querySelector('.key-duration-select');
+            const durationCustom = node.querySelector('.key-duration-custom');
+            const presetDays = [1, 3, 7, 14, 30];
+            if (!k.durationDays) {
+                durationSelect.value = 'permanent';
+                durationCustom.classList.add('hidden');
+            } else if (presetDays.includes(k.durationDays)) {
+                durationSelect.value = String(k.durationDays);
+                durationCustom.classList.add('hidden');
+            } else {
+                durationSelect.value = 'custom';
+                durationCustom.value = k.durationDays;
+                durationCustom.classList.remove('hidden');
+            }
+            node.querySelector('.key-maxusers-input').value = k.maxUsers || 1;
+            node.querySelector('.key-maxusers-input').disabled = !!k.maxUsersUnlimited;
+            node.querySelector('.key-unlimited-toggle').checked = !!k.maxUsersUnlimited;
             node.querySelector('.key-adgate-input').value = k.adGateUrl || '';
+            node.querySelector('.key-visibility-select').value = k.visibility || 'public';
             node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+            node.querySelector('.key-terminate-btn').innerHTML = k.terminated
+                ? '<i class="fa-solid fa-rotate-left"></i> Reactivate'
+                : '<i class="fa-solid fa-ban"></i> Terminate';
 
+            node.querySelector('.key-priority-input').addEventListener('change', (e) => {
+                k.priority = parseInt(e.target.value, 10) || 1;
+            });
             node.querySelector('.key-label-input').addEventListener('input', (e) => { k.label = e.target.value; });
             node.querySelector('.key-value-input').addEventListener('input', (e) => { k.key = e.target.value; });
             node.querySelector('.key-adgate-input').addEventListener('input', (e) => { k.adGateUrl = e.target.value.trim(); });
-            node.querySelector('.key-rotation-toggle').addEventListener('change', (e) => {
-                k.rotation = e.target.checked;
-                node.querySelector('.key-rotation-hours-select').classList.toggle('hidden', !k.rotation);
+            node.querySelector('.key-visibility-select').addEventListener('change', (e) => { k.visibility = e.target.value; });
+
+            node.querySelector('.key-duration-select').addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val === 'permanent') {
+                    k.durationDays = null;
+                    durationCustom.classList.add('hidden');
+                } else if (val === 'custom') {
+                    durationCustom.classList.remove('hidden');
+                    durationCustom.focus();
+                    k.durationDays = parseInt(durationCustom.value, 10) || null;
+                } else {
+                    k.durationDays = parseInt(val, 10);
+                    durationCustom.classList.add('hidden');
+                }
                 node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
-                updateKeysystemBadge();
             });
-            node.querySelector('.key-rotation-hours-select').addEventListener('change', (e) => {
-                k.rotationHours = parseInt(e.target.value, 10) || 24;
+            durationCustom.addEventListener('input', (e) => {
+                k.durationDays = parseInt(e.target.value, 10) || null;
                 node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
-                updateKeysystemBadge();
             });
+
+            node.querySelector('.key-maxusers-input').addEventListener('input', (e) => {
+                k.maxUsers = Math.max(1, parseInt(e.target.value, 10) || 1);
+                node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+            });
+            node.querySelector('.key-unlimited-toggle').addEventListener('change', (e) => {
+                k.maxUsersUnlimited = e.target.checked;
+                node.querySelector('.key-maxusers-input').disabled = k.maxUsersUnlimited;
+                node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
+            });
+
             node.querySelector('.key-generate-btn').addEventListener('click', () => {
                 k.key = generateRandomKey();
                 node.querySelector('.key-value-input').value = k.key;
@@ -303,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
             node.querySelector('.key-extend-btn').addEventListener('click', () => {
                 k.keyGeneratedAt = Date.now();
                 node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
-                showToast('Timer extended — click "Apply Changes" to confirm.', 'info', 3000);
+                showToast('Timer restarted from now — click "Apply Changes" to confirm.', 'info', 3000);
             });
             node.querySelector('.key-regenerate-btn').addEventListener('click', async () => {
                 const confirmed = await customConfirm({
@@ -318,6 +397,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
                 showToast('New key generated — click "Apply Changes" to confirm it.', 'info', 3500);
             });
+            node.querySelector('.key-terminate-btn').addEventListener('click', async () => {
+                if (k.terminated) {
+                    reactivateKey(k);
+                    renderKeysList();
+                    showToast('Key reactivated — click "Apply Changes" to confirm.', 'info', 3000);
+                    return;
+                }
+                const confirmed = await customConfirm({
+                    title: 'Terminate this key?',
+                    message: `"${k.label || 'This key'}" will immediately stop working for everyone once you Apply. You can reactivate it later.`,
+                    confirmLabel: 'Terminate'
+                });
+                if (!confirmed) return;
+                k.terminated = true;
+                renderKeysList();
+                showToast('Key terminated — click "Apply Changes" to confirm.', 'info', 3500);
+            });
             node.querySelector('.key-delete-btn').addEventListener('click', async () => {
                 const confirmed = await customConfirm({
                     title: 'Delete this key?',
@@ -330,6 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('Key removed — click "Apply Changes" to confirm.', 'info', 3000);
             });
 
+            renderKeyBoundUsers(node, k);
             keysList.appendChild(node);
         });
         updateKeysystemBadge();
@@ -359,26 +456,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function keysFromVaultData(data) {
         if (Array.isArray(data.keys) && data.keys.length > 0) {
-            return data.keys.map(k => ({
+            return data.keys.map((k, i) => ({
                 id: k.id || ('k_' + Math.random().toString(36).substring(2, 10)),
                 label: k.label || 'Key',
                 key: k.key || '',
-                rotation: !!k.rotation,
-                rotationHours: k.rotationHours || 24,
+                priority: k.priority || (i + 1),
+                durationDays: k.durationDays != null ? k.durationDays : null,
                 keyGeneratedAt: k.keyGeneratedAt || null,
-                adGateUrl: k.adGateUrl || ''
+                maxUsers: k.maxUsers || 1,
+                maxUsersUnlimited: k.maxUsersUnlimited === true || k.maxUsers === 'unlimited',
+                boundUsers: Array.isArray(k.boundUsers) ? k.boundUsers : [],
+                terminated: !!k.terminated,
+                adGateUrl: k.adGateUrl || '',
+                visibility: k.visibility === 'private' ? 'private' : 'public'
             }));
         }
         // Legacy single-key vaults: migrate on the fly so old data keeps working.
+        // Any old vault-level account-binding settings get folded into this one key.
         if (data.requireKey && data.key) {
             return [{
                 id: 'k_legacy',
                 label: 'Main Key',
                 key: data.key,
-                rotation: !!data.keyRotation,
-                rotationHours: data.keyRotationHours || 24,
+                priority: 1,
+                durationDays: null,
                 keyGeneratedAt: data.keyGeneratedAt || null,
-                adGateUrl: ''
+                maxUsers: data.maxUsers || 1,
+                maxUsersUnlimited: !data.accountBinding,
+                boundUsers: Array.isArray(data.boundUsers) ? data.boundUsers : [],
+                terminated: false,
+                adGateUrl: '',
+                visibility: 'public'
             }];
         }
         return [];
@@ -391,7 +499,8 @@ document.addEventListener('DOMContentLoaded', () => {
             keysystemGetKeyOutput.placeholder = 'Save this vault to generate a link';
             ipLockStatus.classList.add('hidden');
             resetIpBtn.classList.add('hidden');
-            boundUsersList.innerHTML = '';
+            currentBannedUsers = [];
+            renderBannedUsersList();
             return;
         }
         keysystemGetKeyOutput.value = `${window.location.origin}/key.html?id=${activeVaultId.value}`;
@@ -405,11 +514,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Keep the form in sync with what's actually saved.
             chkIpLock.checked = !!data.ipLock;
-            chkAccountBinding.checked = !!data.accountBinding;
-            accountBindingFields.classList.toggle('hidden', !data.accountBinding);
-            maxUsersInput.value = data.maxUsers || 1;
             currentKeys = keysFromVaultData(data);
             renderKeysList();
+
+            currentBannedUsers = Array.isArray(data.bannedUsers) ? data.bannedUsers : [];
+            renderBannedUsersList();
 
             // IP lock status
             if (data.ipLock) {
@@ -426,9 +535,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 resetIpBtn.classList.add('hidden');
             }
 
-            // Bound accounts list
-            renderBoundUsers(Array.isArray(data.boundUsers) ? data.boundUsers : []);
-
             if (!data.requireKey || currentKeys.length === 0) {
                 keysystemStatus.innerHTML = '<i class="fa-solid fa-circle-info text-cyan"></i><p>Key system is currently off, or has no keys yet.</p>';
                 return;
@@ -439,12 +545,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderBoundUsers(boundUsers) {
-        if (!boundUsers.length) {
-            boundUsersList.innerHTML = '<div class="info-box"><p>No accounts have used this key yet.</p></div>';
+    function renderKeyBoundUsers(node, k) {
+        const container = node.querySelector('.key-bound-users-list');
+        const boundUsers = Array.isArray(k.boundUsers) ? k.boundUsers : [];
+        if (boundUsers.length === 0) {
+            container.innerHTML = '<div class="info-box"><p>No one has used this key yet.</p></div>';
             return;
         }
-        boundUsersList.innerHTML = '';
+        container.innerHTML = '';
         boundUsers.forEach(u => {
             const row = document.createElement('div');
             row.className = 'manage-user-row';
@@ -453,49 +561,96 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="manage-user-name"><i class="fa-solid fa-user text-cyan"></i> ${escapeHtml(u.username || 'Unknown')}</span>
                     <span class="manage-user-meta">UserId: ${escapeHtml(String(u.userId))} • ${escapeHtml(timeAgo(u.boundAt))}</span>
                 </div>
-                <button class="btn-danger kick-user-btn"><i class="fa-solid fa-user-slash"></i> Kick</button>
+                <div class="key-bound-user-actions">
+                    <button class="btn-ghost kick-user-btn"><i class="fa-solid fa-user-slash"></i> Kick</button>
+                    <button class="btn-danger ban-user-btn"><i class="fa-solid fa-gavel"></i> Ban</button>
+                </div>
             `;
-            row.querySelector('.kick-user-btn').addEventListener('click', () => kickBoundUser(u.userId));
-            boundUsersList.appendChild(row);
+            row.querySelector('.kick-user-btn').addEventListener('click', () => {
+                k.boundUsers = boundUsers.filter(item => String(item.userId) !== String(u.userId));
+                renderKeysList();
+                showToast('Removed — click "Apply Changes" to confirm.', 'info', 3000);
+            });
+            row.querySelector('.ban-user-btn').addEventListener('click', () => {
+                manualBanUserId.value = String(u.userId);
+                manualBanUserId.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                manualBanUserId.focus();
+                showToast(`Pick a duration below and click Ban to block ${u.username || 'this user'}.`, 'info', 4000);
+            });
+            container.appendChild(row);
         });
     }
 
-    async function kickBoundUser(userId) {
-        if (!activeVaultId.value) return;
-        const confirmed = await customConfirm({
-            title: 'Kick this account?',
-            message: 'They will need to use the key again from scratch, and it only works if a slot is free.',
-            confirmLabel: 'Kick'
+    let currentBannedUsers = [];
+
+    function renderBannedUsersList() {
+        bannedCountBadge.textContent = String(currentBannedUsers.length);
+        bannedCountBadge.classList.toggle('hidden', currentBannedUsers.length === 0);
+        if (currentBannedUsers.length === 0) {
+            bannedUsersList.innerHTML = '<div class="info-box"><p>No one is banned from this vault.</p></div>';
+            return;
+        }
+        bannedUsersList.innerHTML = '';
+        currentBannedUsers.forEach(b => {
+            const remaining = b.bannedUntil ? formatDuration(b.bannedUntil - Date.now()) : null;
+            const isExpired = b.bannedUntil && b.bannedUntil <= Date.now();
+            const row = document.createElement('div');
+            row.className = 'manage-user-row';
+            row.innerHTML = `
+                <div class="manage-user-info">
+                    <span class="manage-user-name"><i class="fa-solid fa-gavel text-red"></i> ${escapeHtml(b.username || 'Unknown')}</span>
+                    <span class="manage-user-meta">UserId: ${escapeHtml(String(b.userId))} • ${
+                        isExpired ? 'Ban expired' : (b.bannedUntil ? `${escapeHtml(remaining)} left` : 'Permanent')
+                    }</span>
+                </div>
+                <button class="btn-ghost unban-btn"><i class="fa-solid fa-check"></i> Unban</button>
+            `;
+            row.querySelector('.unban-btn').addEventListener('click', () => unbanUser(b.userId));
+            bannedUsersList.appendChild(row);
         });
-        if (!confirmed) return;
+    }
+
+    async function unbanUser(userId) {
+        if (!activeVaultId.value) return;
         try {
-            const snap = await getDoc(doc(db, "vaults", activeVaultId.value));
-            if (!snap.exists()) return;
-            const data = snap.data();
-            const updated = (Array.isArray(data.boundUsers) ? data.boundUsers : [])
-                .filter(u => String(u.userId) !== String(userId));
-            await updateDoc(doc(db, "vaults", activeVaultId.value), { boundUsers: updated });
-            renderBoundUsers(updated);
-            showToast('Account kicked — their slot is free again.', 'success');
+            currentBannedUsers = currentBannedUsers.filter(b => String(b.userId) !== String(userId));
+            await updateDoc(doc(db, "vaults", activeVaultId.value), { bannedUsers: currentBannedUsers });
+            renderBannedUsersList();
+            showToast('User unbanned.', 'success');
         } catch (err) {
-            showToast('Failed to kick account: ' + friendlyAuthError(err), 'error');
+            showToast('Failed to unban: ' + friendlyAuthError(err), 'error');
         }
     }
 
-    resetUsersBtn.addEventListener('click', async () => {
-        if (!activeVaultId.value) return;
-        const confirmed = await customConfirm({
-            title: 'Reset all bound accounts?',
-            message: 'Everyone currently bound to this key gets removed. They can use the key again as if for the first time.',
-            confirmLabel: 'Reset All'
-        });
-        if (!confirmed) return;
+    manualBanBtn.addEventListener('click', async () => {
+        if (!activeVaultId.value) {
+            showToast('Save this vault first, then you can ban accounts.', 'info');
+            return;
+        }
+        const userId = manualBanUserId.value.trim();
+        if (!userId) {
+            showToast('Enter a Roblox UserId to ban.', 'error');
+            manualBanUserId.focus();
+            return;
+        }
+        const durationVal = manualBanDuration.value;
+        const bannedUntil = durationVal === 'permanent' ? null : Date.now() + parseInt(durationVal, 10) * 86400000;
+
+        const originalHtml = manualBanBtn.innerHTML;
+        manualBanBtn.disabled = true;
+        manualBanBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
         try {
-            await updateDoc(doc(db, "vaults", activeVaultId.value), { boundUsers: [] });
-            renderBoundUsers([]);
-            showToast('All bound accounts have been reset.', 'success');
+            currentBannedUsers = currentBannedUsers.filter(b => String(b.userId) !== userId);
+            currentBannedUsers.push({ userId, username: 'Unknown', bannedAt: Date.now(), bannedUntil });
+            await updateDoc(doc(db, "vaults", activeVaultId.value), { bannedUsers: currentBannedUsers });
+            renderBannedUsersList();
+            manualBanUserId.value = '';
+            showToast('User banned.', 'success');
         } catch (err) {
-            showToast('Failed to reset accounts: ' + friendlyAuthError(err), 'error');
+            showToast('Failed to ban: ' + friendlyAuthError(err), 'error');
+        } finally {
+            manualBanBtn.disabled = false;
+            manualBanBtn.innerHTML = originalHtml;
         }
     });
 
@@ -555,15 +710,25 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('One of your keys is empty — fill it in or delete that key.', 'error');
             return;
         }
+        if (chkKeySystem.checked && currentKeys.some(k => !isSafeUrl(k.adGateUrl))) {
+            showToast('One of your ad-gate links looks invalid — only http/https links are allowed.', 'error', 5000);
+            return;
+        }
 
         const requireKey = chkKeySystem.checked;
+        const guiMode = requireKey && chkGuiMode.checked;
         const ipLock = requireKey && chkIpLock.checked;
-        const accountBinding = requireKey && chkAccountBinding.checked;
-        const maxUsers = Math.max(1, parseInt(maxUsersInput.value, 10) || 1);
         const keysPayload = requireKey ? currentKeys.map(k => ({
             id: k.id, label: k.label.trim() || 'Key', key: k.key.trim(),
-            rotation: k.rotation, rotationHours: k.rotationHours,
-            keyGeneratedAt: k.keyGeneratedAt || Date.now(), adGateUrl: k.adGateUrl || ''
+            priority: k.priority || 1,
+            durationDays: k.durationDays || null,
+            keyGeneratedAt: k.keyGeneratedAt || Date.now(),
+            maxUsers: Math.max(1, k.maxUsers || 1),
+            maxUsersUnlimited: !!k.maxUsersUnlimited,
+            boundUsers: Array.isArray(k.boundUsers) ? k.boundUsers : [],
+            terminated: !!k.terminated,
+            adGateUrl: k.adGateUrl || '',
+            visibility: k.visibility === 'private' ? 'private' : 'public'
         })) : [];
 
         updateKeysystemBadge();
@@ -584,27 +749,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const existingSnap = await getDoc(doc(db, "vaults", vaultId));
             const existing = existingSnap.exists() ? existingSnap.data() : {};
 
-            // Turning a binding feature OFF clears its stored state; turning it on or
-            // leaving it on preserves whatever's already bound.
+            // Turning IP lock off clears the bound IP; leaving it on preserves it.
             const boundIp = ipLock ? (existing.boundIp || null) : null;
-            const boundUsers = accountBinding ? (Array.isArray(existing.boundUsers) ? existing.boundUsers : []) : [];
-
-            // Keep a couple of legacy fields in sync too, for anything still reading the old shape.
             const primaryKey = keysPayload[0] || null;
 
             await updateDoc(doc(db, "vaults", vaultId), {
                 requireKey,
+                guiMode,
                 keys: keysPayload,
                 key: primaryKey ? primaryKey.key : '',
-                keyRotation: primaryKey ? primaryKey.rotation : false,
-                keyRotationHours: primaryKey ? primaryKey.rotationHours : 24,
                 keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
-                ipLock, boundIp,
-                accountBinding, maxUsers, boundUsers
+                ipLock, boundIp
             });
 
             // Reflect changes in the loadstring/get-key display without a full page reload.
-            const keyParam = primaryKey ? `&key=${encodeURIComponent(primaryKey.key)}` : '';
+            const keyParam = (!guiMode && primaryKey) ? `&key=${encodeURIComponent(primaryKey.key)}` : '';
             lsOutput.value = `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${vaultId}${keyParam}"))()`;
             if (requireKey) {
                 getKeyOutput.value = `${window.location.origin}/key.html?id=${vaultId}`;
@@ -843,10 +1002,10 @@ document.addEventListener('DOMContentLoaded', () => {
         keySystemFields.classList.toggle('hidden', !data.requireKey);
         currentKeys = keysFromVaultData(data);
         renderKeysList();
+        chkGuiMode.checked = !!data.guiMode;
         chkIpLock.checked = !!data.ipLock;
-        chkAccountBinding.checked = !!data.accountBinding;
-        accountBindingFields.classList.toggle('hidden', !data.accountBinding);
-        maxUsersInput.value = data.maxUsers || 1;
+        currentBannedUsers = Array.isArray(data.bannedUsers) ? data.bannedUsers : [];
+        renderBannedUsersList();
         updateKeysystemBadge();
         editingIndicator.classList.remove('hidden');
         deleteBtn.classList.remove('hidden');
@@ -856,7 +1015,7 @@ document.addEventListener('DOMContentLoaded', () => {
             execCountBadge.classList.remove('hidden');
         }
 
-        const keyParam = data.requireKey && data.key ? `&key=${encodeURIComponent(data.key)}` : '';
+        const keyParam = (!data.guiMode && data.requireKey && data.key) ? `&key=${encodeURIComponent(data.key)}` : '';
         const rawUrl = `${window.location.origin}/api/raw?id=${id}${keyParam}`;
         lsOutput.value = `loadstring(game:HttpGet("${rawUrl}"))()`;
         resultOverlay.classList.remove('hidden');
@@ -912,21 +1071,31 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('One of your keys is empty — fill it in or delete that key.', 'error');
             return;
         }
+        if (chkKeySystem.checked && currentKeys.some(k => !isSafeUrl(k.adGateUrl))) {
+            showToast('One of your ad-gate links looks invalid — only http/https links are allowed.', 'error', 5000);
+            return;
+        }
 
         const title = scriptTitle.value.trim() || 'Untitled Vault';
         const requireKey = chkKeySystem.checked;
+        const guiMode = requireKey && chkGuiMode.checked;
         const ipLock = requireKey && chkIpLock.checked;
-        const accountBinding = requireKey && chkAccountBinding.checked;
-        const maxUsers = Math.max(1, parseInt(maxUsersInput.value, 10) || 1);
         const vaultId = activeVaultId.value || ('vx_' + Math.random().toString(36).substring(2, 10));
 
         let currentExecutions = 0;
         let boundIp = null;
-        let boundUsers = [];
+        let bannedUsersToSave = [];
         let keysPayload = requireKey ? currentKeys.map(k => ({
             id: k.id, label: k.label.trim() || 'Key', key: k.key.trim(),
-            rotation: k.rotation, rotationHours: k.rotationHours,
-            keyGeneratedAt: k.keyGeneratedAt || Date.now(), adGateUrl: k.adGateUrl || ''
+            priority: k.priority || 1,
+            durationDays: k.durationDays || null,
+            keyGeneratedAt: k.keyGeneratedAt || Date.now(),
+            maxUsers: Math.max(1, k.maxUsers || 1),
+            maxUsersUnlimited: !!k.maxUsersUnlimited,
+            boundUsers: Array.isArray(k.boundUsers) ? k.boundUsers : [],
+            terminated: !!k.terminated,
+            adGateUrl: k.adGateUrl || '',
+            visibility: k.visibility === 'private' ? 'private' : 'public'
         })) : [];
 
         if (activeVaultId.value) {
@@ -935,10 +1104,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (docSnap.exists()) {
                     const existing = docSnap.data();
                     currentExecutions = existing.executions || 0;
-                    // Preserve live binding state across unrelated resaves; only cleared when the
-                    // owner explicitly turns the feature off or uses the Reset buttons.
+                    // Preserve live binding/ban state across unrelated resaves; only cleared
+                    // when the owner explicitly turns IP lock off or uses the Reset button.
                     if (ipLock) boundIp = existing.boundIp || null;
-                    if (accountBinding) boundUsers = Array.isArray(existing.boundUsers) ? existing.boundUsers : [];
+                    bannedUsersToSave = Array.isArray(existing.bannedUsers) ? existing.bannedUsers : [];
                 }
             } catch (e) {}
         }
@@ -950,16 +1119,13 @@ document.addEventListener('DOMContentLoaded', () => {
             title: title,
             code: code,
             requireKey: requireKey,
+            guiMode: guiMode,
             keys: keysPayload,
             key: primaryKey ? primaryKey.key : '',
-            keyRotation: primaryKey ? primaryKey.rotation : false,
-            keyRotationHours: primaryKey ? primaryKey.rotationHours : 24,
             keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
             ipLock: ipLock,
             boundIp: boundIp,
-            accountBinding: accountBinding,
-            maxUsers: maxUsers,
-            boundUsers: boundUsers,
+            bannedUsers: bannedUsersToSave,
             executions: currentExecutions,
             uid: currentUser ? currentUser.uid : 'guest',
             updatedAt: Date.now()
@@ -979,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 execCountBadge.classList.remove('hidden');
             }
 
-            const keyParam = requireKey && key ? `&key=${encodeURIComponent(key)}` : '';
+            const keyParam = (!guiMode && primaryKey) ? `&key=${encodeURIComponent(primaryKey.key)}` : '';
             const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}${keyParam}`;
             const loadstringCmd = `loadstring(game:HttpGet("${rawUrl}"))()`;
 
@@ -1027,12 +1193,12 @@ document.addEventListener('DOMContentLoaded', () => {
         sourceCode.value = '';
         updateLineNumbers();
         chkKeySystem.checked = false;
+        chkGuiMode.checked = false;
         currentKeys = [];
         renderKeysList();
         chkIpLock.checked = false;
-        chkAccountBinding.checked = false;
-        accountBindingFields.classList.add('hidden');
-        maxUsersInput.value = 1;
+        currentBannedUsers = [];
+        renderBannedUsersList();
         updateKeysystemBadge();
         keySystemFields.classList.add('hidden');
         editingIndicator.classList.add('hidden');
