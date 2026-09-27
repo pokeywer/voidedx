@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VoidedX // Key System</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="shell">
+        <div class="promo-banner">
+            <i class="fa-solid fa-rocket promo-icon"></i>
+            <span><strong>VoidedX Script Vault</strong> — Fast, Free & Secure Roblox Script Hosting & Key System! Share your scripts safely.</span>
+            <a href="/" class="btn-promo"><i class="fa-solid fa-plus"></i> Create a Vault</a>
+        </div>
+        <header class="top-nav">
+            <a href="/" class="brand-unit brand-unit-link">
+                <i class="fa-solid fa-terminal brand-icon"></i>
+                <div class="brand-titles">
+                    <span class="brand-name">VOIDEDX</span>
+                    <span class="brand-tag">FREE</span>
+                </div>
+            </a>
+            <a href="/" class="btn-ghost ks-back-link"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+        </header>
+
+        <div class="ks-page-wrap">
+            <div id="ks-loading" class="info-box"><p><i class="fa-solid fa-spinner fa-spin"></i> Loading vault…</p></div>
+            <div id="ks-error" class="info-box text-red hidden"><p id="ks-error-text">Vault not found.</p></div>
+
+            <div id="ks-content" class="hidden">
+                <div class="ks-page-header">
+                    <h1><i class="fa-solid fa-key text-cyan"></i> Key System Manager</h1>
+                    <p id="ks-vault-title" class="ks-vault-title">Untitled Vault</p>
+                    <label class="toggle-row keysystem-enable-row">
+                        <span>Enable Key System</span>
+                        <input type="checkbox" id="chk-key-system">
+                        <span class="switch"></span>
+                    </label>
+                </div>
+
+                <div id="key-system-fields" class="hidden">
+                    <div class="ks-tabs">
+                        <button type="button" class="ks-tab active" data-tab="keys"><i class="fa-solid fa-key"></i> Keys <span id="keys-count-badge" class="keysystem-badge on hidden">0</span></button>
+                        <button type="button" class="ks-tab" data-tab="security"><i class="fa-solid fa-shield-halved"></i> Security</button>
+                        <button type="button" class="ks-tab" data-tab="share"><i class="fa-solid fa-share-nodes"></i> Get-Key Link</button>
+                    </div>
+
+                    <div class="ks-tab-panel" data-panel="keys">
+                        <div class="panel-group">
+                            <div id="keys-list" class="keys-list"></div>
+                            <button type="button" id="add-key-btn" class="btn-ghost btn-new-vault"><i class="fa-solid fa-plus"></i> Add New Key</button>
+                        </div>
+
+                        <div class="panel-group">
+                            <label class="panel-label">DELIVERY METHOD</label>
+                            <label class="toggle-row">
+                                <span><i class="fa-solid fa-gamepad text-cyan"></i> In-Game Key GUI (popup asks for the key)</span>
+                                <input type="checkbox" id="chk-gui-mode">
+                                <span class="switch"></span>
+                            </label>
+                            <div class="info-box">
+                                <i class="fa-solid fa-circle-info text-cyan"></i>
+                                <p><strong>On:</strong> the loadstring has no key in it — a popup appears in-game (PC and mobile) asking the player to type their key. <strong>Off:</strong> the key is baked into the loadstring URL itself.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ks-tab-panel hidden" data-panel="security">
+                        <div class="panel-group">
+                            <label class="panel-label">IP LOCK</label>
+                            <label class="toggle-row">
+                                <span><i class="fa-solid fa-location-dot text-cyan"></i> Lock Key to First IP</span>
+                                <input type="checkbox" id="chk-ip-lock">
+                                <span class="switch"></span>
+                            </label>
+                            <div id="ip-lock-status" class="info-box hidden">
+                                <i class="fa-solid fa-circle-info text-cyan"></i>
+                                <p id="ip-lock-status-text">Not bound to any IP yet — the next person to use this key locks it in.</p>
+                            </div>
+                            <button type="button" id="reset-ip-btn" class="btn-ghost hidden"><i class="fa-solid fa-eraser"></i> Reset Bound IP</button>
+                            <div class="info-box">
+                                <i class="fa-solid fa-triangle-exclamation text-red"></i>
+                                <p>People on shared/mobile networks can have changing IPs, which can lock out a legitimate user by accident — use Reset if that happens. Applies across all keys on this vault.</p>
+                            </div>
+                        </div>
+
+                        <div class="panel-group">
+                            <label class="panel-label">BANNED USERS <span class="keysystem-badge on hidden" id="banned-count-badge">0</span></label>
+                            <div class="info-box">
+                                <i class="fa-solid fa-circle-info text-cyan"></i>
+                                <p>Banning blocks a Roblox account from using <strong>any</strong> key on this vault. Only takes effect where the vault can see who's playing (account-bound or in-game GUI keys).</p>
+                            </div>
+                            <div id="banned-users-list" class="manage-user-list"></div>
+                            <div class="key-input-row">
+                                <input type="text" id="manual-ban-userid" class="input-field" placeholder="Roblox UserId to ban">
+                                <select id="manual-ban-duration" class="input-field" style="max-width:140px;">
+                                    <option value="1">1 Day</option>
+                                    <option value="7">7 Days</option>
+                                    <option value="30">30 Days</option>
+                                    <option value="permanent">Permanent</option>
+                                </select>
+                                <button type="button" id="manual-ban-btn" class="btn-danger"><i class="fa-solid fa-gavel"></i> Ban</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ks-tab-panel hidden" data-panel="share">
+                        <div class="panel-group">
+                            <label class="panel-label">GET-KEY LINK</label>
+                            <div class="copy-input">
+                                <input type="text" id="keysystem-get-key-output" readonly placeholder="Save this vault to generate a link">
+                                <button type="button" id="keysystem-copy-key-link-btn" class="btn-accent"><i class="fa-solid fa-copy"></i> Copy</button>
+                            </div>
+                            <div class="info-box">
+                                <i class="fa-solid fa-circle-info text-cyan"></i>
+                                <p>This one link shows visitors all your <strong>public</strong> keys (each with its own timer and, if you add one, an ad-link step). Private keys are never listed there.</p>
+                            </div>
+                        </div>
+                        <div id="keysystem-status" class="info-box keysystem-status"></div>
+                    </div>
+                </div>
+
+                <div class="ks-page-actions">
+                    <button id="keysystem-apply-btn" class="btn-primary"><i class="fa-solid fa-check"></i> Apply Changes</button>
+                    <a href="/" class="btn-ghost">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- Template for one key row -->
+    <template id="key-row-template">
+        <div class="key-card">
+            <div class="key-card-header">
+                <input type="text" class="input-field key-priority-input" title="Priority (1 = shown first)" style="max-width:52px; text-align:center; flex-shrink:0;" inputmode="numeric">
+                <input type="text" class="input-field key-label-input" placeholder="Key label (e.g. Free, VIP)" autocomplete="off">
+                <button type="button" class="btn-danger key-delete-btn" title="Delete this key"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <div class="key-input-row">
+                <input type="text" class="input-field key-value-input" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly');">
+                <button type="button" class="btn-accent key-generate-btn" title="Generate a random key"><i class="fa-solid fa-dice"></i></button>
+            </div>
+
+            <div class="key-toolbar">
+                <span class="key-toolbar-label">ACTIONS</span>
+                <div class="key-toolbar-buttons">
+                    <button type="button" class="key-tool-btn key-extend-btn" title="Extend Time"><i class="fa-solid fa-clock"></i></button>
+                    <button type="button" class="key-tool-btn key-regenerate-btn" title="Regenerate"><i class="fa-solid fa-rotate"></i></button>
+                    <button type="button" class="key-tool-btn key-terminate-btn" title="Terminate"><i class="fa-solid fa-ban"></i></button>
+                </div>
+            </div>
+
+            <label class="panel-label" style="margin-top:8px; display:block;">DURATION</label>
+            <select class="input-field key-duration-select">
+                <option value="permanent">Permanent — never expires</option>
+                <option value="1">1 Day</option>
+                <option value="3">3 Days</option>
+                <option value="7">7 Days</option>
+                <option value="14">14 Days</option>
+                <option value="30">30 Days</option>
+                <option value="custom">Custom…</option>
+            </select>
+            <input type="number" class="input-field key-duration-custom" min="1" placeholder="Number of days" style="margin-top:6px;">
+
+            <label class="panel-label" style="margin-top:8px; display:block;">PLAYERS ALLOWED</label>
+            <div class="key-input-row">
+                <input type="number" class="input-field key-maxusers-input" min="1" value="1">
+                <label class="toggle-row key-unlimited-row">
+                    <span>Unlimited</span>
+                    <input type="checkbox" class="key-unlimited-toggle">
+                    <span class="switch"></span>
+                </label>
+            </div>
+
+            <label class="panel-label" style="margin-top:8px; display:block;">VISIBILITY</label>
+            <select class="input-field key-visibility-select">
+                <option value="public">Public — anyone with the vault ID can self-serve this key on the Get-Key page</option>
+                <option value="private">Private / Whitelist — hidden from the Get-Key page, you hand this key out yourself</option>
+            </select>
+            <label class="panel-label" style="margin-top:8px; display:block;">AD-GATE LINK (OPTIONAL, PUBLIC KEYS ONLY)</label>
+            <input type="text" class="input-field key-adgate-input" placeholder="https://your-ad-link.com/... (leave blank for no ad step)" autocomplete="off">
+
+            <p class="key-card-status"></p>
+
+            <div class="key-bound-users-list"></div>
+        </div>
+    </template>
+
+    <script type="module" src="keysystem.js"></script>
+</body>
+</html>

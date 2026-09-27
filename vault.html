@@ -67,6 +67,7 @@
                     <span><i class="fa-solid fa-eye-slash"></i> Source Hidden</span>
                     <span><i class="fa-solid fa-database"></i> Vault</span>
                     <span id="key-tag" class="hidden"><i class="fa-solid fa-key"></i> Key Verified</span>
+                    <span id="key-expiry-tag" class="hidden"><i class="fa-solid fa-clock"></i> --</span>
                 </div>
 
                 <div class="loadstring-box">
@@ -109,6 +110,7 @@
         const securedState = document.getElementById('secured-state');
         const securedTitle = document.getElementById('secured-title');
         const keyTag = document.getElementById('key-tag');
+        const keyExpiryTag = document.getElementById('key-expiry-tag');
         const loadstringInput = document.getElementById('loadstring-input');
         const copyBtn = document.getElementById('copy-ls-btn');
 
@@ -139,10 +141,41 @@
             return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}${keyParam}"))()`;
         }
 
-        function showSecured(data, key) {
+        function getVaultKeys(data) {
+            if (Array.isArray(data.keys) && data.keys.length > 0) return data.keys;
+            if (data.requireKey && data.key) {
+                return [{ id: 'k_legacy', label: 'Main Key', key: data.key, durationDays: null, keyGeneratedAt: data.keyGeneratedAt || null, terminated: false }];
+            }
+            return [];
+        }
+
+        function matchKey(data, candidate) {
+            const found = getVaultKeys(data).find(k => k.key === candidate);
+            if (!found) return { ok: false, reason: 'wrong' };
+            if (found.terminated) return { ok: false, reason: 'terminated' };
+            if (found.durationDays && found.keyGeneratedAt) {
+                const expiresAt = found.keyGeneratedAt + found.durationDays * 86400000;
+                if (Date.now() > expiresAt) return { ok: false, reason: 'expired' };
+            }
+            return { ok: true, key: found };
+        }
+
+        function showSecured(data, key, matchedKey) {
             securedTitle.innerHTML = `<strong>${escapeHtml(data.title || 'Untitled Vault')}</strong> is protected by <strong>VoidedX Vault</strong>.`;
             keyTag.classList.toggle('hidden', !data.requireKey);
             loadstringInput.value = buildLoadstring(vaultId, key);
+
+            if (matchedKey && matchedKey.durationDays && matchedKey.keyGeneratedAt) {
+                const expiresAt = matchedKey.keyGeneratedAt + matchedKey.durationDays * 86400000;
+                const msLeft = expiresAt - Date.now();
+                const d = Math.floor(msLeft / 86400000);
+                const h = Math.floor((msLeft % 86400000) / 3600000);
+                keyExpiryTag.textContent = `Expires in ${d}d ${h}h`;
+                keyExpiryTag.classList.remove('hidden');
+            } else {
+                keyExpiryTag.classList.add('hidden');
+            }
+
             showOnly(securedState);
         }
 
@@ -169,14 +202,24 @@
 
                 vaultData = docSnap.data();
 
-                if (vaultData.requireKey && providedKey !== vaultData.key) {
-                    keypromptTitle.innerHTML = `<strong>${escapeHtml(vaultData.title || 'This vault')}</strong> is protected by a key.`;
-                    document.getElementById('get-key-link').href = `/key.html?id=${encodeURIComponent(vaultId)}`;
-                    showOnly(keypromptState);
+                if (!vaultData.requireKey) {
+                    showSecured(vaultData, providedKey, null);
                     return;
                 }
 
-                showSecured(vaultData, providedKey);
+                const check = matchKey(vaultData, providedKey);
+                if (!check.ok) {
+                    if (check.reason === "wrong") {
+                        keypromptTitle.innerHTML = `<strong>${escapeHtml(vaultData.title || "This vault")}</strong> is protected by a key.`;
+                        document.getElementById("get-key-link").href = `/key.html?id=${encodeURIComponent(vaultId)}`;
+                        showOnly(keypromptState);
+                        return;
+                    }
+                    errorMessage.textContent = check.reason === "terminated" ? "This key has been terminated by the owner." : "This key has expired.";
+                    showOnly(errorState);
+                    return;
+                }
+                showSecured(vaultData, providedKey, check.key);
             } catch (err) {
                 errorMessage.textContent = 'Something went wrong checking this vault: ' + err.message;
                 showOnly(errorState);
@@ -195,15 +238,24 @@
                 return;
             }
 
-            if (!vaultData || entered !== vaultData.key) {
+            if (!vaultData) {
                 keyError.textContent = 'Incorrect key. Try again.';
+                keyError.classList.remove('hidden');
+                keyInput.classList.add('error');
+                return;
+            }
+            const check = matchKey(vaultData, entered);
+            if (!check.ok) {
+                keyError.textContent = check.reason === 'terminated' ? 'This key has been terminated.'
+                    : check.reason === 'expired' ? 'This key has expired.'
+                    : 'Incorrect key. Try again.';
                 keyError.classList.remove('hidden');
                 keyInput.classList.add('error');
                 return;
             }
 
             providedKey = entered;
-            showSecured(vaultData, providedKey);
+            showSecured(vaultData, providedKey, check.key);
         });
 
         keyInput.addEventListener('keydown', (e) => {
