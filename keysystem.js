@@ -2,6 +2,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/fireba
 import {
     getFirestore, doc, getDoc, updateDoc
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import {
+    getAuth, onAuthStateChanged, signInAnonymously
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
 const firebaseConfig = {
     apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
@@ -13,6 +16,18 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+// Resolves with the current Firebase user (signing in anonymously if needed),
+// so every visitor has a real UID to compare against the vault's owner.
+function waitForUser() {
+    return new Promise((resolve, reject) => {
+        const unsub = onAuthStateChanged(auth, async (user) => {
+            if (user) { unsub(); resolve(user); return; }
+            try { await signInAnonymously(auth); } catch (e) { unsub(); reject(e); }
+        });
+    });
+}
 
 function escapeHtml(str) {
     const div = document.createElement('div');
@@ -124,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------------- Key list state ----------------
     let currentKeys = [];
+    let currentOwnerLegacy = false;
     let currentBannedUsers = [];
 
     chkKeySystem.addEventListener('change', () => {
@@ -223,7 +239,23 @@ document.addEventListener('DOMContentLoaded', () => {
             node.querySelector('.key-label-input').addEventListener('input', (e) => { k.label = e.target.value; });
             node.querySelector('.key-value-input').addEventListener('input', (e) => { k.key = e.target.value; });
             node.querySelector('.key-adgate-input').addEventListener('input', (e) => { k.adGateUrl = e.target.value.trim(); });
-            node.querySelector('.key-visibility-select').addEventListener('change', (e) => { k.visibility = e.target.value; });
+            const keyInputEl = node.querySelector('.key-value-input');
+            const applyKeyLock = () => {
+                const isPublic = k.visibility !== 'private';
+                keyInputEl.readOnly = isPublic;
+                keyInputEl.title = isPublic ? 'Public keys are randomly generated — use the dice to reroll' : '';
+                keyInputEl.onfocus = isPublic ? null : () => keyInputEl.removeAttribute('readonly');
+            };
+            applyKeyLock();
+            node.querySelector('.key-visibility-select').addEventListener('change', (e) => {
+                k.visibility = e.target.value;
+                if (k.visibility === 'public') {
+                    k.key = generateRandomKey();
+                    keyInputEl.value = k.key;
+                    showToast('Public keys are random — a fresh one was generated.', 'info', 3000);
+                }
+                applyKeyLock();
+            });
 
             durationSelect.addEventListener('change', (e) => {
                 const val = e.target.value;
@@ -467,6 +499,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const data = snap.data();
+
+            // Ownership gate: only the vault's owner (or anyone, for old pre-UID
+            // "guest" vaults) may see or change its keys.
+            const user = await waitForUser();
+            if (data.uid !== user.uid && data.uid !== 'guest') {
+                ksLoading.classList.add('hidden');
+                ksErrorText.textContent = "Access denied — this vault belongs to a different account.";
+                ksError.classList.remove('hidden');
+                return;
+            }
+            currentOwnerLegacy = data.uid === 'guest';
             ksVaultTitle.textContent = data.title || 'Untitled Vault';
 
             chkKeySystem.checked = !!data.requireKey;
@@ -550,7 +593,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 requireKey, guiMode, keys: keysPayload,
                 key: primaryKey ? primaryKey.key : '',
                 keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
-                ipLock, boundIp
+                ipLock, boundIp,
+                ...(currentOwnerLegacy && auth.currentUser ? { uid: auth.currentUser.uid } : {})
             });
 
             showToast('Key settings updated!', 'success');
