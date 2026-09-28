@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
+    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
     getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     authBtn.addEventListener('click', () => {
-        if (currentUser) {
+        if (currentUser && !currentUser.isAnonymous) {
             signOut(auth);
             showToast('Logged out.', 'info', 2500);
         } else {
@@ -342,17 +342,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    let lastUid = null;
     onAuthStateChanged(auth, user => {
         currentUser = user;
-        if (user) {
+        const newUid = user ? user.uid : null;
+        if (newUid !== lastUid) {
+            // Identity changed (login / logout / new guest): clear the editor and the
+            // vault list so nothing from the previous account stays on screen.
+            resetEditor();
+            vaultListContainer.innerHTML = '<div class="info-box"><p><i class="fa-solid fa-spinner fa-spin"></i> Loading vaults...</p></div>';
+            updateVaultCount(0);
+            lastUid = newUid;
+        }
+        if (user && !user.isAnonymous) {
             userDisplay.innerHTML = `<i class="fa-solid fa-user-check text-cyan"></i> ${user.email}`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-from-bracket"></i> Logout`;
             loadUserVaults();
-        } else {
+        } else if (user && user.isAnonymous) {
+            // Real Firebase Auth session, just without an email — this UID is what
+            // proves ownership of vaults created while "not logged in".
             userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
-            vaultListContainer.innerHTML = '<div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>';
-            updateVaultCount(0);
+            loadUserVaults();
+        } else {
+            // No session at all yet — silently start one so this browser gets a
+            // stable, unique UID instead of everyone sharing the literal "guest".
+            signInAnonymously(auth).catch(() => {
+                userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
+                authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
+                vaultListContainer.innerHTML = '<div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>';
+                updateVaultCount(0);
+            });
         }
     });
 
@@ -362,8 +382,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) return;
         vaultListContainer.innerHTML = '<div class="info-box"><p><i class="fa-solid fa-spinner fa-spin"></i> Loading vaults...</p></div>';
         try {
-            const q = query(collection(db, "vaults"), where("uid", "==", currentUser.uid));
+            const uidAtStart = currentUser.uid;
+            const q = query(collection(db, "vaults"), where("uid", "==", uidAtStart));
             const snapshot = await getDocs(q);
+            if (!currentUser || currentUser.uid !== uidAtStart) return;
             vaultListContainer.innerHTML = '';
             updateVaultCount(snapshot.size);
             if (snapshot.empty) {
@@ -465,6 +487,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lockBtn.addEventListener('click', async () => {
         if (isSaving) return;
+        if (!currentUser) {
+            showToast('Still starting your session — try again in a second.', 'info');
+            return;
+        }
         const code = sourceCode.value;
 
         clearFieldError(sourceCode, codeError);
@@ -513,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
             code: code,
             ...existingKeyFields,
             executions: currentExecutions,
-            uid: currentUser ? currentUser.uid : 'guest',
+            uid: currentUser.uid,
             updatedAt: Date.now()
         };
 
@@ -590,6 +616,26 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFieldError(sourceCode, codeError);
         clearFieldError(scriptTitle, titleError);
     }
+
+    const claimVaultBtn = document.getElementById('claim-vault-btn');
+    claimVaultBtn.addEventListener('click', async () => {
+        if (!currentUser) return;
+        const vid = (window.prompt('Enter the ID of your old vault (looks like vx_abc12345):') || '').trim();
+        if (!vid) return;
+        try {
+            const ref = doc(db, "vaults", vid);
+            const snap = await getDoc(ref);
+            if (!snap.exists()) { showToast('No vault found with that ID.', 'error'); return; }
+            const d = snap.data();
+            if (d.uid === currentUser.uid) { showToast('That vault is already yours.', 'info'); return; }
+            if (d.uid !== 'guest') { showToast('That vault belongs to another account.', 'error'); return; }
+            await updateDoc(ref, { uid: currentUser.uid });
+            showToast('Vault recovered — it is now tied to your account.', 'success');
+            loadUserVaults();
+        } catch (err) {
+            showToast('Could not recover vault: ' + friendlyAuthError(err), 'error');
+        }
+    });
 
     newVaultBtn.addEventListener('click', () => {
         resetEditor();

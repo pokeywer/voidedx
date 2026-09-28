@@ -1,17 +1,4 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-
-const firebaseConfig = {
-    apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
-    authDomain: "voidedx-fe79f.firebaseapp.com",
-    projectId: "voidedx-fe79f",
-    storageBucket: "voidedx-fe79f.firebasestorage.app",
-    messagingSenderId: "784635868195",
-    appId: "1:784635868195:web:6e879214df4238bc2aad96"
-};
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
+import { db } from './_admin.js';
 
 function isExecutorRequest(req) {
     const ua = (req.headers['user-agent'] || '').toLowerCase();
@@ -41,10 +28,9 @@ export default async function handler(req, res) {
     }
 
     try {
-        const docRef = doc(db, "vaults", id);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await db.collection("vaults").doc(id).get();
 
-        if (!docSnap.exists()) {
+        if (!docSnap.exists) {
             return res.status(404).send('-- Error: Vault ID not found in VoidedX Cloud');
         }
 

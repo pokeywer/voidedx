@@ -1,17 +1,4 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, updateDoc, increment, runTransaction } from 'firebase/firestore';
-
-const firebaseConfig = {
-    apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
-    authDomain: "voidedx-fe79f.firebaseapp.com",
-    projectId: "voidedx-fe79f",
-    storageBucket: "voidedx-fe79f.firebasestorage.app",
-    messagingSenderId: "784635868195",
-    appId: "1:784635868195:web:6e879214df4238bc2aad96"
-};
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
+import { db, FieldValue } from './_admin.js';
 
 function json(res, status, body) {
     res.setHeader('Content-Type', 'application/json');
@@ -45,10 +32,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        const vaultRef = doc(db, 'vaults', id);
-        const vaultSnap = await getDoc(vaultRef);
+        const vaultRef = db.collection('vaults').doc(id);
+        const vaultSnap = await vaultRef.get();
 
-        if (!vaultSnap.exists()) {
+        if (!vaultSnap.exists) {
             return json(res, 404, { ok: false, message: 'Vault not found.' });
         }
 
@@ -92,9 +79,9 @@ export default async function handler(req, res) {
         if (vault.ipLock) {
             const clientIp = getClientIp(req);
             try {
-                const ipResult = await runTransaction(db, async (tx) => {
+                const ipResult = await db.runTransaction(async (tx) => {
                     const freshSnap = await tx.get(vaultRef);
-                    if (!freshSnap.exists()) return { ok: true };
+                    if (!freshSnap.exists) return { ok: true };
                     const freshData = freshSnap.data();
                     if (!freshData.boundIp) {
                         tx.update(vaultRef, { boundIp: clientIp });
@@ -109,13 +96,13 @@ export default async function handler(req, res) {
         }
 
         // Execution counter (best-effort, non-blocking).
-        try { await updateDoc(vaultRef, { executions: increment(1) }); } catch (e) {}
+        try { await vaultRef.update({ executions: FieldValue.increment(1) }); } catch (e) {}
 
         // Per-key player limit, atomic so two people can't both slip past a full cap.
         if (uidStr) {
-            const result = await runTransaction(db, async (tx) => {
+            const result = await db.runTransaction(async (tx) => {
                 const freshSnap = await tx.get(vaultRef);
-                if (!freshSnap.exists()) return { ok: true, code: vault.code };
+                if (!freshSnap.exists) return { ok: true, code: vault.code };
                 const freshData = freshSnap.data();
                 const freshKeys = getVaultKeys(freshData);
                 const idx = freshKeys.findIndex(k => k.key === key);

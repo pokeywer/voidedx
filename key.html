@@ -101,19 +101,7 @@
     </template>
 
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
-            authDomain: "voidedx-fe79f.firebaseapp.com",
-            projectId: "voidedx-fe79f",
-            storageBucket: "voidedx-fe79f.firebasestorage.app",
-            messagingSenderId: "784635868195",
-            appId: "1:784635868195:web:6e879214df4238bc2aad96"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
 
         const HOUR_MS = 60 * 60 * 1000;
 
@@ -192,7 +180,6 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const vaultId = urlParams.get('id');
-        let vaultRef = null;
 
         async function loadVault() {
             if (!vaultId) {
@@ -201,40 +188,29 @@
                 return;
             }
             try {
-                vaultRef = doc(db, 'vaults', vaultId);
-                const snap = await getDoc(vaultRef);
-                if (!snap.exists()) {
-                    errorMessage.textContent = "This vault ID doesn't exist or may have been deleted.";
+                const r = await fetch(`/api/keypage?id=${encodeURIComponent(vaultId)}`);
+                const data = await r.json();
+                if (!data.ok) {
+                    errorMessage.textContent = data.message || 'Something went wrong loading this vault.';
                     showOnly(errorState);
                     return;
                 }
-                const data = snap.data();
-                const allKeys = getVaultKeys(data);
-                // Private/whitelist and terminated keys never appear here.
-                const keysList = allKeys
-                    .filter(k => k.visibility !== 'private' && !k.terminated)
-                    .sort((a, b) => (a.priority || 0) - (b.priority || 0));
-
-                if (!data.requireKey || allKeys.length === 0) {
+                if (!data.requireKey) {
                     errorMessage.textContent = "This vault doesn't use a key system — no key is needed to run it.";
                     showOnly(errorState);
                     return;
                 }
-
-                if (keysList.length === 0) {
-                    errorMessage.textContent = "This vault's keys are private/whitelist-only, or all keys have been terminated. Contact the owner directly.";
+                if (!data.keys.length) {
+                    errorMessage.textContent = "This vault's keys are private/whitelist-only, expired, or terminated. Contact the owner directly.";
                     showOnly(errorState);
                     return;
                 }
-
                 getkeyTitle.innerHTML = `Get Your Key — <span class="text-cyan">${escapeHtml(data.title || 'Untitled Vault')}</span>`;
-
                 keysCardsList.innerHTML = '';
-                keysList.forEach(k => buildKeyCard(k));
-
+                data.keys.forEach(k => buildKeyCard(k));
                 showOnly(getkeyState);
             } catch (err) {
-                errorMessage.textContent = 'Something went wrong loading this vault: ' + err.message;
+                errorMessage.textContent = 'Something went wrong loading this vault.';
                 showOnly(errorState);
             }
         }
@@ -292,21 +268,25 @@
                 }, 180);
             }
 
-            function revealKey() {
+            async function revealKey() {
                 const now = Date.now();
-                const expired = keyDef.durationDays && keyDef.keyGeneratedAt &&
-                    (now - keyDef.keyGeneratedAt > keyDef.durationDays * HOUR_MS * 24);
+                let keyValue = null;
+                try {
+                    const r = await fetch(`/api/keypage?id=${encodeURIComponent(vaultId)}&keyId=${encodeURIComponent(keyDef.id)}`);
+                    const d = await r.json();
+                    if (d.ok) keyValue = d.key;
+                } catch (e) {}
 
-                if (expired) {
+                if (!keyValue) {
                     loadingBlock.classList.add('hidden');
                     idleBlock.classList.remove('hidden');
-                    showToast('This key has expired. Contact the owner for a new one.', 'error', 5000);
+                    showToast('This key is unavailable or has expired. Contact the owner.', 'error', 5000);
                     return;
                 }
 
-                keyOutput.value = keyDef.key;
-                loadstringOutput.value = buildLoadstring(vaultId, keyDef.key);
-                openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(keyDef.key)}`;
+                keyOutput.value = keyValue;
+                loadstringOutput.value = buildLoadstring(vaultId, keyValue);
+                openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(keyValue)}`;
 
                 if (keyDef.durationDays && keyDef.keyGeneratedAt) {
                     expiryTag.classList.remove('hidden');

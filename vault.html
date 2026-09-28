@@ -85,19 +85,7 @@
     <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
-            authDomain: "voidedx-fe79f.firebaseapp.com",
-            projectId: "voidedx-fe79f",
-            storageBucket: "voidedx-fe79f.firebasestorage.app",
-            messagingSenderId: "784635868195",
-            appId: "1:784635868195:web:6e879214df4238bc2aad96"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
 
         const loadingState = document.getElementById('loading-state');
         const errorState = document.getElementById('error-state');
@@ -141,33 +129,18 @@
             return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}${keyParam}"))()`;
         }
 
-        function getVaultKeys(data) {
-            if (Array.isArray(data.keys) && data.keys.length > 0) return data.keys;
-            if (data.requireKey && data.key) {
-                return [{ id: 'k_legacy', label: 'Main Key', key: data.key, durationDays: null, keyGeneratedAt: data.keyGeneratedAt || null, terminated: false }];
-            }
-            return [];
+        async function fetchInfo(key) {
+            const r = await fetch(`/api/vaultinfo?id=${encodeURIComponent(vaultId)}${key ? `&key=${encodeURIComponent(key)}` : ''}`);
+            return r.json();
         }
 
-        function matchKey(data, candidate) {
-            const found = getVaultKeys(data).find(k => k.key === candidate);
-            if (!found) return { ok: false, reason: 'wrong' };
-            if (found.terminated) return { ok: false, reason: 'terminated' };
-            if (found.durationDays && found.keyGeneratedAt) {
-                const expiresAt = found.keyGeneratedAt + found.durationDays * 86400000;
-                if (Date.now() > expiresAt) return { ok: false, reason: 'expired' };
-            }
-            return { ok: true, key: found };
-        }
-
-        function showSecured(data, key, matchedKey) {
+        function showSecured(data, key) {
             securedTitle.innerHTML = `<strong>${escapeHtml(data.title || 'Untitled Vault')}</strong> is protected by <strong>VoidedX Vault</strong>.`;
             keyTag.classList.toggle('hidden', !data.requireKey);
             loadstringInput.value = buildLoadstring(vaultId, key);
 
-            if (matchedKey && matchedKey.durationDays && matchedKey.keyGeneratedAt) {
-                const expiresAt = matchedKey.keyGeneratedAt + matchedKey.durationDays * 86400000;
-                const msLeft = expiresAt - Date.now();
+            if (data.expiresAt) {
+                const msLeft = data.expiresAt - Date.now();
                 const d = Math.floor(msLeft / 86400000);
                 const h = Math.floor((msLeft % 86400000) / 3600000);
                 keyExpiryTag.textContent = `Expires in ${d}d ${h}h`;
@@ -175,7 +148,6 @@
             } else {
                 keyExpiryTag.classList.add('hidden');
             }
-
             showOnly(securedState);
         }
 
@@ -191,71 +163,45 @@
                 showOnly(errorState);
                 return;
             }
-
             try {
-                const docSnap = await getDoc(doc(db, 'vaults', vaultId));
-                if (!docSnap.exists()) {
-                    errorMessage.textContent = "This vault ID doesn't exist or may have been deleted.";
+                const data = await fetchInfo(providedKey);
+                if (!data.ok) {
+                    errorMessage.textContent = data.message || 'This vault could not be loaded.';
                     showOnly(errorState);
                     return;
                 }
-
-                vaultData = docSnap.data();
-
-                if (!vaultData.requireKey) {
-                    showSecured(vaultData, providedKey, null);
-                    return;
-                }
-
-                const check = matchKey(vaultData, providedKey);
-                if (!check.ok) {
-                    if (check.reason === "wrong") {
-                        keypromptTitle.innerHTML = `<strong>${escapeHtml(vaultData.title || "This vault")}</strong> is protected by a key.`;
-                        document.getElementById("get-key-link").href = `/key.html?id=${encodeURIComponent(vaultId)}`;
-                        showOnly(keypromptState);
-                        return;
-                    }
-                    errorMessage.textContent = check.reason === "terminated" ? "This key has been terminated by the owner." : "This key has expired.";
+                vaultData = data;
+                if (!data.requireKey) { showSecured(data, providedKey); return; }
+                if (data.keyStatus === 'ok') { showSecured(data, providedKey); return; }
+                if (data.keyStatus === 'terminated' || data.keyStatus === 'expired') {
+                    errorMessage.textContent = data.keyStatus === 'terminated' ? 'This key has been terminated by the owner.' : 'This key has expired.';
                     showOnly(errorState);
                     return;
                 }
-                showSecured(vaultData, providedKey, check.key);
+                keypromptTitle.innerHTML = `<strong>${escapeHtml(data.title || 'This vault')}</strong> is protected by a key.`;
+                document.getElementById('get-key-link').href = `/key.html?id=${encodeURIComponent(vaultId)}`;
+                showOnly(keypromptState);
             } catch (err) {
-                errorMessage.textContent = 'Something went wrong checking this vault: ' + err.message;
+                errorMessage.textContent = 'Something went wrong checking this vault.';
                 showOnly(errorState);
             }
         }
 
-        keySubmitBtn.addEventListener('click', () => {
+        keySubmitBtn.addEventListener('click', async () => {
             const entered = keyInput.value.trim();
             keyError.classList.add('hidden');
             keyInput.classList.remove('error');
-
-            if (!entered) {
-                keyError.textContent = 'Enter the access key.';
-                keyError.classList.remove('hidden');
-                keyInput.classList.add('error');
-                return;
-            }
-
-            if (!vaultData) {
-                keyError.textContent = 'Incorrect key. Try again.';
-                keyError.classList.remove('hidden');
-                keyInput.classList.add('error');
-                return;
-            }
-            const check = matchKey(vaultData, entered);
-            if (!check.ok) {
-                keyError.textContent = check.reason === 'terminated' ? 'This key has been terminated.'
-                    : check.reason === 'expired' ? 'This key has expired.'
-                    : 'Incorrect key. Try again.';
-                keyError.classList.remove('hidden');
-                keyInput.classList.add('error');
-                return;
-            }
-
-            providedKey = entered;
-            showSecured(vaultData, providedKey, check.key);
+            const fail = (msg) => { keyError.textContent = msg; keyError.classList.remove('hidden'); keyInput.classList.add('error'); };
+            if (!entered) return fail('Enter the access key.');
+            try {
+                const data = await fetchInfo(entered);
+                if (!data.ok || data.keyStatus !== 'ok') {
+                    return fail(data.keyStatus === 'terminated' ? 'This key has been terminated.'
+                        : data.keyStatus === 'expired' ? 'This key has expired.' : 'Incorrect key. Try again.');
+                }
+                providedKey = entered;
+                showSecured(data, providedKey);
+            } catch (e) { fail('Could not check the key. Try again.'); }
         });
 
         keyInput.addEventListener('keydown', (e) => {
