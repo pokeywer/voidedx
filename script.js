@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously
+    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
     getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     authBtn.addEventListener('click', () => {
-        if (currentUser && !currentUser.isAnonymous) {
+        if (currentUser) {
             signOut(auth);
             showToast('Logged out.', 'info', 2500);
         } else {
@@ -344,25 +344,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     onAuthStateChanged(auth, user => {
         currentUser = user;
-        if (user && !user.isAnonymous) {
+        if (user) {
             userDisplay.innerHTML = `<i class="fa-solid fa-user-check text-cyan"></i> ${user.email}`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-from-bracket"></i> Logout`;
             loadUserVaults();
-        } else if (user && user.isAnonymous) {
-            // Real Firebase Auth session, just without an email — this UID is what
-            // proves ownership of vaults created while "not logged in".
+        } else {
             userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
-            loadUserVaults();
-        } else {
-            // No session at all yet — silently start one so this browser gets a
-            // stable, unique UID instead of everyone sharing the literal "guest".
-            signInAnonymously(auth).catch(() => {
-                userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
-                authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
-                vaultListContainer.innerHTML = '<div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>';
-                updateVaultCount(0);
-            });
+            vaultListContainer.innerHTML = '<div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>';
+            updateVaultCount(0);
         }
     });
 
@@ -372,9 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) return;
         vaultListContainer.innerHTML = '<div class="info-box"><p><i class="fa-solid fa-spinner fa-spin"></i> Loading vaults...</p></div>';
         try {
-            const q = currentUser.isAnonymous
-                ? query(collection(db, "vaults"), where("uid", "in", [currentUser.uid, "guest"]))
-                : query(collection(db, "vaults"), where("uid", "==", currentUser.uid));
+            const q = query(collection(db, "vaults"), where("uid", "==", currentUser.uid));
             const snapshot = await getDocs(q);
             vaultListContainer.innerHTML = '';
             updateVaultCount(snapshot.size);
@@ -477,10 +465,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lockBtn.addEventListener('click', async () => {
         if (isSaving) return;
-        if (!currentUser) {
-            showToast('Still starting your session — try again in a second.', 'info');
-            return;
-        }
         const code = sourceCode.value;
 
         clearFieldError(sourceCode, codeError);
@@ -529,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
             code: code,
             ...existingKeyFields,
             executions: currentExecutions,
-            uid: currentUser.uid,
+            uid: currentUser ? currentUser.uid : 'guest',
             updatedAt: Date.now()
         };
 
