@@ -50,7 +50,10 @@
                     <div class="ks-tab-panel" data-panel="keys">
                         <div class="panel-group">
                             <div id="keys-list" class="keys-list"></div>
-                            <button type="button" id="add-key-btn" class="btn-ghost btn-new-vault"><i class="fa-solid fa-plus"></i> Add New Key</button>
+                            <div class="info-box">
+                                <i class="fa-solid fa-wand-magic-sparkles text-cyan"></i>
+                                <p>Your key is <strong>auto-generated</strong> — no need to add or type one yourself. Use the dice to reroll it, or Regenerate for a fresh one.</p>
+                            </div>
                         </div>
 
                         <div class="panel-group">
@@ -141,7 +144,7 @@
                 <button type="button" class="btn-danger key-delete-btn" title="Delete this key"><i class="fa-solid fa-trash"></i></button>
             </div>
             <div class="key-input-row">
-                <input type="text" class="input-field key-value-input" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly');">
+                <input type="text" class="input-field key-value-input" autocomplete="off" spellcheck="false" readonly>
                 <button type="button" class="btn-accent key-generate-btn" title="Generate a random key"><i class="fa-solid fa-dice"></i></button>
             </div>
 

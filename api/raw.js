@@ -21,6 +21,7 @@ export default async function handler(req, res) {
         return res.status(400).send('-- Error: Missing Vault ID');
     }
 
+    // Real browser visitors get sent to the SECURED landing page instead of raw code.
     if (!isExecutorRequest(req)) {
         const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
         return res.redirect(302, `/vault.html?id=${encodeURIComponent(id)}${keyParam}`);
@@ -35,6 +36,8 @@ export default async function handler(req, res) {
 
         const vaultData = docSnap.data();
 
+        // GUI Mode: no key in the URL at all — send an in-game popup instead that
+        // asks the player to type their key, then verifies it via /api/verify.
         if (vaultData.requireKey && vaultData.guiMode) {
             res.setHeader('Content-Type', 'text/plain');
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -48,6 +51,9 @@ export default async function handler(req, res) {
             return res.status(200).send(vaultData.code);
         }
 
+        // Key-in-URL mode: fast-fail on an obviously missing key, otherwise hand off
+        // to a loader that identifies the player and asks /api/verify to do the real
+        // checking (key match, expiry, termination, bans, IP lock, player limits).
         if (!key) {
             return res.status(403).send(`
 -- [VOIDEDX SECURITY ALERT]
@@ -111,8 +117,6 @@ function buildGuiLoader(id, origin) {
     const verifyBase = `${origin}/api/verify`;
     const keyPageUrl = `${origin}/key.html?id=${id}`;
     return `
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
@@ -135,126 +139,73 @@ screenGui.Parent = getGuiParent()
 local frame = Instance.new("Frame")
 frame.AnchorPoint = Vector2.new(0.5, 0.5)
 frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-frame.Size = UDim2.new(0, 340, 0, 250)
-frame.BackgroundColor3 = Color3.fromRGB(15, 17, 23)
+frame.Size = UDim2.new(0.85, 0, 0, 250)
+frame.BackgroundColor3 = Color3.fromRGB(11, 13, 18)
 frame.BorderSizePixel = 0
-frame.ClipsDescendants = true
-frame.BackgroundTransparency = 1
 frame.Parent = screenGui
+
+local sizeConstraint = Instance.new("UISizeConstraint")
+sizeConstraint.MaxSize = Vector2.new(360, 280)
+sizeConstraint.Parent = frame
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = frame
 
 local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(38, 45, 62)
-stroke.Thickness = 1.5
-stroke.Transparency = 1
+stroke.Color = Color3.fromRGB(33, 38, 53)
+stroke.Thickness = 1
 stroke.Parent = frame
 
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 38)
-titleBar.BackgroundTransparency = 1
-titleBar.Parent = frame
-
-local titleText = Instance.new("TextLabel")
-titleText.Size = UDim2.new(1, -50, 1, 0)
-titleText.Position = UDim2.new(0, 14, 0, 0)
-titleText.BackgroundTransparency = 1
-titleText.Text = "VoidedX Key System"
-titleText.TextColor3 = Color3.fromRGB(240, 244, 248)
-titleText.Font = Enum.Font.GothamBold
-titleText.TextSize = 14
-titleText.TextXAlignment = Enum.TextXAlignment.Left
-titleText.Parent = titleBar
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 26, 0, 26)
-closeBtn.Position = UDim2.new(1, -32, 0.5, -13)
-closeBtn.BackgroundColor3 = Color3.fromRGB(25, 30, 42)
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(160, 170, 190)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 12
-closeBtn.AutoButtonColor = false
-closeBtn.Parent = titleBar
-
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 6)
-closeCorner.Parent = closeBtn
-
-closeBtn.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-end)
-
-local dragging, dragInput, dragStart, startPos
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-
-titleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1, -28, 1, -48)
-content.Position = UDim2.new(0, 14, 0, 42)
-content.BackgroundTransparency = 1
-content.Parent = frame
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 20)
+padding.PaddingBottom = UDim.new(0, 20)
+padding.PaddingLeft = UDim.new(0, 20)
+padding.PaddingRight = UDim.new(0, 20)
+padding.Parent = frame
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 8)
+layout.Padding = UDim.new(0, 10)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = content
+layout.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 24)
+title.BackgroundTransparency = 1
+title.Text = "VoidedX Key System"
+title.TextColor3 = Color3.fromRGB(248, 250, 252)
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
+title.LayoutOrder = 1
+title.Parent = frame
 
 local subtitle = Instance.new("TextLabel")
 subtitle.Size = UDim2.new(1, 0, 0, 16)
 subtitle.BackgroundTransparency = 1
-subtitle.Text = "Enter your access key to continue"
-subtitle.TextColor3 = Color3.fromRGB(130, 140, 160)
+subtitle.Text = "Enter your key to continue"
+subtitle.TextColor3 = Color3.fromRGB(100, 116, 139)
 subtitle.Font = Enum.Font.Gotham
-subtitle.TextSize = 12
-subtitle.TextXAlignment = Enum.TextXAlignment.Left
-subtitle.LayoutOrder = 1
-subtitle.Parent = content
+subtitle.TextScaled = true
+subtitle.LayoutOrder = 2
+subtitle.Parent = frame
 
 local inputBox = Instance.new("TextBox")
-inputBox.Size = UDim2.new(1, 0, 0, 38)
-inputBox.BackgroundColor3 = Color3.fromRGB(22, 27, 38)
+inputBox.Size = UDim2.new(1, 0, 0, 40)
+inputBox.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
 inputBox.TextColor3 = Color3.fromRGB(6, 182, 212)
-inputBox.PlaceholderText = "Paste key here..."
-inputBox.PlaceholderColor3 = Color3.fromRGB(90, 100, 120)
+inputBox.PlaceholderText = "Enter key here..."
+inputBox.PlaceholderColor3 = Color3.fromRGB(100, 116, 139)
 inputBox.Text = ""
 inputBox.ClearTextOnFocus = false
 inputBox.Font = Enum.Font.Code
-inputBox.TextSize = 13
-inputBox.LayoutOrder = 2
-inputBox.Parent = content
+inputBox.TextScaled = true
+inputBox.LayoutOrder = 3
+inputBox.Parent = frame
 
 local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 8)
 inputCorner.Parent = inputBox
-
-local inputStroke = Instance.new("UIStroke")
-inputStroke.Color = Color3.fromRGB(38, 45, 62)
-inputStroke.Thickness = 1
-inputStroke.Parent = inputBox
 
 local inputPad = Instance.new("UIPadding")
 inputPad.PaddingLeft = UDim.new(0, 10)
@@ -262,72 +213,65 @@ inputPad.PaddingRight = UDim.new(0, 10)
 inputPad.Parent = inputBox
 
 local submitBtn = Instance.new("TextButton")
-submitBtn.Size = UDim2.new(1, 0, 0, 38)
+submitBtn.Size = UDim2.new(1, 0, 0, 40)
 submitBtn.BackgroundColor3 = Color3.fromRGB(6, 182, 212)
-submitBtn.Text = "Verify Key"
+submitBtn.Text = "Submit"
 submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Font = Enum.Font.GothamBold
-submitBtn.TextSize = 13
-submitBtn.AutoButtonColor = false
-submitBtn.LayoutOrder = 3
-submitBtn.Parent = content
+submitBtn.TextScaled = true
+submitBtn.AutoButtonColor = true
+submitBtn.LayoutOrder = 4
+submitBtn.Parent = frame
 
 local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 8)
 btnCorner.Parent = submitBtn
 
-local getKeyBtn = Instance.new("TextButton")
-getKeyBtn.Size = UDim2.new(1, 0, 0, 20)
-getKeyBtn.BackgroundTransparency = 1
-getKeyBtn.Text = "Need a key? Click to copy link"
-getKeyBtn.TextColor3 = Color3.fromRGB(120, 130, 150)
-getKeyBtn.Font = Enum.Font.Gotham
-getKeyBtn.TextSize = 11
-getKeyBtn.LayoutOrder = 4
-getKeyBtn.Parent = content
-
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 16)
+statusLabel.Size = UDim2.new(1, 0, 0, 18)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = ""
 statusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
 statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 11
+statusLabel.TextScaled = true
 statusLabel.LayoutOrder = 5
-statusLabel.Parent = content
+statusLabel.Parent = frame
 
--- Entrance Animation
-frame.Size = UDim2.new(0, 300, 0, 220)
-TweenService:Create(frame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 340, 0, 250),
-    BackgroundTransparency = 0
-}):Play()
-TweenService:Create(stroke, TweenInfo.new(0.35), { Transparency = 0 }):Play()
+local getKeyBtn = Instance.new("TextButton")
+getKeyBtn.Size = UDim2.new(1, 0, 0, 24)
+getKeyBtn.BackgroundTransparency = 1
+getKeyBtn.Text = "Need a key? Click to copy the Get-Key link"
+getKeyBtn.TextColor3 = Color3.fromRGB(100, 116, 139)
+getKeyBtn.Font = Enum.Font.Gotham
+getKeyBtn.TextScaled = true
+getKeyBtn.LayoutOrder = 6
+getKeyBtn.Parent = frame
 
 getKeyBtn.MouseButton1Click:Connect(function()
     local copied = pcall(function() setclipboard(${luaString(keyPageUrl)}) end)
     if copied then
         statusLabel.TextColor3 = Color3.fromRGB(16, 185, 129)
-        statusLabel.Text = "Link copied! Paste in your browser."
+        statusLabel.Text = "Link copied! Paste it in your browser."
     else
         statusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-        statusLabel.Text = "Key URL: ${keyPageUrl}"
+        statusLabel.Text = "Get a key at: ${keyPageUrl}"
     end
 end)
 
 local verifying = false
+
 local function attemptVerify()
     if verifying then return end
     local typedKey = inputBox.Text
     if typedKey == "" then
         statusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-        statusLabel.Text = "Please enter a key first."
+        statusLabel.Text = "Enter a key first."
         return
     end
 
     verifying = true
-    statusLabel.TextColor3 = Color3.fromRGB(140, 150, 170)
-    statusLabel.Text = "Verifying key..."
+    statusLabel.TextColor3 = Color3.fromRGB(100, 116, 139)
+    statusLabel.Text = "Checking..."
     submitBtn.Text = "Checking..."
 
     local ok, response = pcall(function()
@@ -340,18 +284,18 @@ local function attemptVerify()
     end)
 
     verifying = false
-    submitBtn.Text = "Verify Key"
+    submitBtn.Text = "Submit"
 
     if not ok then
         statusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-        statusLabel.Text = "Failed to connect to server."
+        statusLabel.Text = "Couldn't reach the server. Try again."
         return
     end
 
     local decodeOk, result = pcall(function() return HttpService:JSONDecode(response) end)
     if not decodeOk or type(result) ~= "table" then
         statusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
-        statusLabel.Text = "Invalid server response."
+        statusLabel.Text = "Bad response from server."
         return
     end
 
@@ -361,16 +305,6 @@ local function attemptVerify()
         return
     end
 
-    statusLabel.TextColor3 = Color3.fromRGB(16, 185, 129)
-    statusLabel.Text = "Key accepted! Loading..."
-
-    TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 300, 0, 220),
-        BackgroundTransparency = 1
-    }):Play()
-    TweenService:Create(stroke, TweenInfo.new(0.25), { Transparency = 1 }):Play()
-
-    task.wait(0.25)
     screenGui:Destroy()
     loadstring(result.code)()
 end

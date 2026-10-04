@@ -103,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const keySystemFields = document.getElementById('key-system-fields');
     const keysList = document.getElementById('keys-list');
     const keysCountBadge = document.getElementById('keys-count-badge');
-    const addKeyBtn = document.getElementById('add-key-btn');
     const keyRowTemplate = document.getElementById('key-row-template');
     const chkGuiMode = document.getElementById('chk-gui-mode');
     const chkIpLock = document.getElementById('chk-ip-lock');
@@ -144,6 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chkKeySystem.addEventListener('change', () => {
         keySystemFields.classList.toggle('hidden', !chkKeySystem.checked);
+        // Keys are auto-generated: turning the system on with no keys spawns one.
+        if (chkKeySystem.checked && currentKeys.length === 0) {
+            currentKeys.push(newKeyObject());
+            renderKeysList();
+            showToast('A fresh public key was auto-generated for you.', 'info', 3000);
+        }
         updateKeysystemBadge();
     });
 
@@ -192,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderKeysList() {
         keysList.innerHTML = '';
         if (currentKeys.length === 0) {
-            keysList.innerHTML = '<div class="info-box"><p>No keys yet — add one below.</p></div>';
+            keysList.innerHTML = '<div class="info-box"><p>No key yet — one is generated for you automatically.</p></div>';
             updateKeysystemBadge();
             return;
         }
@@ -323,8 +328,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const confirmed = await customConfirm({ title: 'Delete this key?', message: `"${k.label || 'This key'}" will stop working once you Apply.`, confirmLabel: 'Delete' });
                 if (!confirmed) return;
                 currentKeys = currentKeys.filter(item => item.id !== k.id);
+                if (currentKeys.length === 0) {
+                    currentKeys.push(newKeyObject());
+                    showToast('Key deleted — a fresh auto-generated key took its place.', 'info', 3500);
+                } else {
+                    showToast('Key removed — click "Apply Changes" to confirm.', 'info', 3000);
+                }
                 renderKeysList();
-                showToast('Key removed — click "Apply Changes" to confirm.', 'info', 3000);
             });
 
             renderKeyBoundUsers(node, k);
@@ -369,11 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(row);
         });
     }
-
-    addKeyBtn.addEventListener('click', () => {
-        currentKeys.push(newKeyObject());
-        renderKeysList();
-    });
 
     // ---------------- Banned users ----------------
     function renderBannedUsersList() {
@@ -515,6 +520,10 @@ document.addEventListener('DOMContentLoaded', () => {
             chkKeySystem.checked = !!data.requireKey;
             keySystemFields.classList.toggle('hidden', !data.requireKey);
             currentKeys = keysFromVaultData(data);
+            // Keys are auto-generated: a vault with the key system on always has one.
+            if (data.requireKey && currentKeys.length === 0) {
+                currentKeys.push(newKeyObject());
+            }
             renderKeysList();
 
             chkGuiMode.checked = !!data.guiMode;
@@ -554,8 +563,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     keysystemApplyBtn.addEventListener('click', async () => {
         if (chkKeySystem.checked && currentKeys.length === 0) {
-            showToast('Add at least one key, or turn the key system off.', 'error');
-            return;
+            // Never block on an empty list — keys are auto-generated.
+            currentKeys.push(newKeyObject());
+            renderKeysList();
         }
         if (chkKeySystem.checked && currentKeys.some(k => !k.key.trim())) {
             showToast('One of your keys is empty — fill it in or delete that key.', 'error');
