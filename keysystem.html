@@ -49,11 +49,57 @@
 
                     <div class="ks-tab-panel" data-panel="keys">
                         <div class="panel-group">
-                            <div id="keys-list" class="keys-list"></div>
-                            <div class="info-box">
-                                <i class="fa-solid fa-wand-magic-sparkles text-cyan"></i>
-                                <p>Your key is <strong>auto-generated</strong> — no need to add or type one yourself. Use the dice to reroll it, or Regenerate for a fresh one.</p>
+                            <label class="panel-label"><i class="fa-solid fa-globe text-cyan"></i> PUBLIC KEY</label>
+                            <label class="toggle-row">
+                                <span>Enable Public Key</span>
+                                <input type="checkbox" id="chk-public-key">
+                                <span class="switch"></span>
+                            </label>
+                            <div id="public-key-fields" class="hidden">
+                                <div class="info-box">
+                                    <i class="fa-solid fa-circle-info text-cyan"></i>
+                                    <p>Auto-generated — you can't type your own public key. Visitors get it from the Get-Key link after an optional ad step and a short wait, enforced by the server so it can't be skipped.</p>
+                                </div>
+                                <label class="panel-label" style="display:block;">DURATION</label>
+                                <select id="public-duration-select" class="input-field">
+                                    <option value="permanent">Permanent — never expires</option>
+                                    <option value="1">1 Day</option>
+                                    <option value="3">3 Days</option>
+                                    <option value="7">7 Days</option>
+                                    <option value="14">14 Days</option>
+                                    <option value="30">30 Days</option>
+                                    <option value="custom">Custom…</option>
+                                </select>
+                                <input type="number" id="public-duration-custom" class="input-field hidden" min="1" placeholder="Number of days" style="margin-top:6px;">
+
+                                <label class="panel-label" style="margin-top:8px; display:block;">PLAYERS ALLOWED</label>
+                                <div class="key-input-row">
+                                    <input type="number" id="public-maxusers-input" class="input-field" min="1" value="1">
+                                    <label class="toggle-row key-unlimited-row">
+                                        <span>Unlimited</span>
+                                        <input type="checkbox" id="public-unlimited-toggle">
+                                        <span class="switch"></span>
+                                    </label>
+                                </div>
+
+                                <label class="panel-label" style="margin-top:8px; display:block;">AD-GATE LINK (OPTIONAL)</label>
+                                <input type="text" id="public-adgate-input" class="input-field" placeholder="https://your-ad-link.com/... (leave blank for no ad step)" autocomplete="off">
+
+                                <div class="key-toolbar">
+                                    <span class="key-toolbar-label">ACTIONS</span>
+                                    <div class="key-toolbar-buttons">
+                                        <button type="button" id="public-regenerate-btn" class="key-tool-btn" title="Force Regenerate"><i class="fa-solid fa-rotate"></i></button>
+                                        <button type="button" id="public-terminate-btn" class="key-tool-btn" title="Terminate"><i class="fa-solid fa-ban"></i></button>
+                                    </div>
+                                </div>
+                                <p id="public-key-status" class="key-card-status"></p>
                             </div>
+                        </div>
+
+                        <div class="panel-group">
+                            <label class="panel-label"><i class="fa-solid fa-user-lock text-cyan"></i> PRIVATE / WHITELIST KEYS</label>
+                            <div id="keys-list" class="keys-list"></div>
+                            <button type="button" id="add-key-btn" class="btn-ghost btn-new-vault"><i class="fa-solid fa-plus"></i> Add Private Key</button>
                         </div>
 
                         <div class="panel-group">
@@ -144,7 +190,7 @@
                 <button type="button" class="btn-danger key-delete-btn" title="Delete this key"><i class="fa-solid fa-trash"></i></button>
             </div>
             <div class="key-input-row">
-                <input type="text" class="input-field key-value-input" autocomplete="off" spellcheck="false" readonly>
+                <input type="text" class="input-field key-value-input" autocomplete="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly');">
                 <button type="button" class="btn-accent key-generate-btn" title="Generate a random key"><i class="fa-solid fa-dice"></i></button>
             </div>
 
@@ -178,14 +224,6 @@
                     <span class="switch"></span>
                 </label>
             </div>
-
-            <label class="panel-label" style="margin-top:8px; display:block;">VISIBILITY</label>
-            <select class="input-field key-visibility-select">
-                <option value="public">Public — anyone with the vault ID can self-serve this key on the Get-Key page</option>
-                <option value="private">Private / Whitelist — hidden from the Get-Key page, you hand this key out yourself</option>
-            </select>
-            <label class="panel-label" style="margin-top:8px; display:block;">AD-GATE LINK (OPTIONAL, PUBLIC KEYS ONLY)</label>
-            <input type="text" class="input-field key-adgate-input" placeholder="https://your-ad-link.com/... (leave blank for no ad step)" autocomplete="off">
 
             <p class="key-card-status"></p>
 

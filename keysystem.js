@@ -103,7 +103,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const keySystemFields = document.getElementById('key-system-fields');
     const keysList = document.getElementById('keys-list');
     const keysCountBadge = document.getElementById('keys-count-badge');
+    const addKeyBtn = document.getElementById('add-key-btn');
     const keyRowTemplate = document.getElementById('key-row-template');
+    const chkPublicKey = document.getElementById('chk-public-key');
+    const publicKeyFields = document.getElementById('public-key-fields');
+    const publicDurationSelect = document.getElementById('public-duration-select');
+    const publicDurationCustom = document.getElementById('public-duration-custom');
+    const publicMaxUsersInput = document.getElementById('public-maxusers-input');
+    const publicUnlimitedToggle = document.getElementById('public-unlimited-toggle');
+    const publicAdGateInput = document.getElementById('public-adgate-input');
+    const publicRegenerateBtn = document.getElementById('public-regenerate-btn');
+    const publicTerminateBtn = document.getElementById('public-terminate-btn');
+    const publicKeyStatus = document.getElementById('public-key-status');
     const chkGuiMode = document.getElementById('chk-gui-mode');
     const chkIpLock = document.getElementById('chk-ip-lock');
     const ipLockStatus = document.getElementById('ip-lock-status');
@@ -143,12 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chkKeySystem.addEventListener('change', () => {
         keySystemFields.classList.toggle('hidden', !chkKeySystem.checked);
-        // Keys are auto-generated: turning the system on with no keys spawns one.
-        if (chkKeySystem.checked && currentKeys.length === 0) {
-            currentKeys.push(newKeyObject());
-            renderKeysList();
-            showToast('A fresh public key was auto-generated for you.', 'info', 3000);
-        }
         updateKeysystemBadge();
     });
 
@@ -168,9 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
             maxUsers: 1,
             maxUsersUnlimited: false,
             boundUsers: [],
-            terminated: false,
-            adGateUrl: '',
-            visibility: 'public'
+            terminated: false
         };
     }
 
@@ -197,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderKeysList() {
         keysList.innerHTML = '';
         if (currentKeys.length === 0) {
-            keysList.innerHTML = '<div class="info-box"><p>No key yet — one is generated for you automatically.</p></div>';
+            keysList.innerHTML = '<div class="info-box"><p>No keys yet — add one below.</p></div>';
             updateKeysystemBadge();
             return;
         }
@@ -230,8 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
             node.querySelector('.key-maxusers-input').value = k.maxUsers || 1;
             node.querySelector('.key-maxusers-input').disabled = !!k.maxUsersUnlimited;
             node.querySelector('.key-unlimited-toggle').checked = !!k.maxUsersUnlimited;
-            node.querySelector('.key-adgate-input').value = k.adGateUrl || '';
-            node.querySelector('.key-visibility-select').value = k.visibility || 'public';
             node.querySelector('.key-card-status').textContent = formatKeyStatus(k);
             node.querySelector('.key-terminate-btn').innerHTML = k.terminated
                 ? '<i class="fa-solid fa-rotate-left"></i>'
@@ -243,25 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             node.querySelector('.key-label-input').addEventListener('input', (e) => { k.label = e.target.value; });
             node.querySelector('.key-value-input').addEventListener('input', (e) => { k.key = e.target.value; });
-            node.querySelector('.key-adgate-input').addEventListener('input', (e) => { k.adGateUrl = e.target.value.trim(); });
-            const keyInputEl = node.querySelector('.key-value-input');
-            const applyKeyLock = () => {
-                const isPublic = k.visibility !== 'private';
-                keyInputEl.readOnly = isPublic;
-                keyInputEl.title = isPublic ? 'Public keys are randomly generated — use the dice to reroll' : '';
-                keyInputEl.onfocus = isPublic ? null : () => keyInputEl.removeAttribute('readonly');
-            };
-            applyKeyLock();
-            node.querySelector('.key-visibility-select').addEventListener('change', (e) => {
-                k.visibility = e.target.value;
-                if (k.visibility === 'public') {
-                    k.key = generateRandomKey();
-                    keyInputEl.value = k.key;
-                    showToast('Public keys are random — a fresh one was generated.', 'info', 3000);
-                }
-                applyKeyLock();
-            });
-
             durationSelect.addEventListener('change', (e) => {
                 const val = e.target.value;
                 if (val === 'permanent') {
@@ -328,13 +310,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const confirmed = await customConfirm({ title: 'Delete this key?', message: `"${k.label || 'This key'}" will stop working once you Apply.`, confirmLabel: 'Delete' });
                 if (!confirmed) return;
                 currentKeys = currentKeys.filter(item => item.id !== k.id);
-                if (currentKeys.length === 0) {
-                    currentKeys.push(newKeyObject());
-                    showToast('Key deleted — a fresh auto-generated key took its place.', 'info', 3500);
-                } else {
-                    showToast('Key removed — click "Apply Changes" to confirm.', 'info', 3000);
-                }
                 renderKeysList();
+                showToast('Key removed — click "Apply Changes" to confirm.', 'info', 3000);
             });
 
             renderKeyBoundUsers(node, k);
@@ -379,6 +356,76 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(row);
         });
     }
+
+    addKeyBtn.addEventListener('click', () => {
+        currentKeys.push(newKeyObject());
+        renderKeysList();
+    });
+
+    // ---------------- Public Key section ----------------
+    chkPublicKey.addEventListener('change', () => {
+        publicKeyFields.classList.toggle('hidden', !chkPublicKey.checked);
+    });
+    publicDurationSelect.addEventListener('change', (e) => {
+        publicDurationCustom.classList.toggle('hidden', e.target.value !== 'custom');
+    });
+    publicUnlimitedToggle.addEventListener('change', (e) => {
+        publicMaxUsersInput.disabled = e.target.checked;
+    });
+
+    function renderPublicKeyStatus(entry) {
+        if (!chkPublicKey.checked) { publicKeyStatus.textContent = ''; return; }
+        if (!entry) {
+            publicKeyStatus.textContent = 'No key generated yet — the first visitor to use the Get-Key link creates one.';
+            return;
+        }
+        const parts = [];
+        if (entry.terminated) {
+            parts.push('TERMINATED — this key no longer works until regenerated.');
+        } else if (!entry.durationDays) {
+            parts.push('Current key is permanent — never expires on its own.');
+        } else if (entry.keyGeneratedAt) {
+            const msLeft = (entry.keyGeneratedAt + entry.durationDays * 86400000) - Date.now();
+            parts.push(msLeft > 0 ? `Current key expires in ${formatDuration(msLeft)}.` : 'Current key has expired — a new one generates on next visit.');
+        }
+        const boundCount = Array.isArray(entry.boundUsers) ? entry.boundUsers.length : 0;
+        parts.push(entry.maxUsersUnlimited
+            ? `${boundCount} player${boundCount === 1 ? '' : 's'} have used it so far.`
+            : `${boundCount} / ${entry.maxUsers} player slot${entry.maxUsers === 1 ? '' : 's'} used.`);
+        publicKeyStatus.textContent = parts.join(' ');
+    }
+
+    publicRegenerateBtn.addEventListener('click', async () => {
+        const confirmed = await customConfirm({ title: 'Force regenerate the public key?', message: 'The current public key stops working immediately. The next visitor gets a new one.', confirmLabel: 'Regenerate' });
+        if (!confirmed) return;
+        try {
+            const snap = await getDoc(doc(db, "vaults", vaultId));
+            const data = snap.data();
+            const updatedKeys = (Array.isArray(data.keys) ? data.keys : []).filter(k => k.id !== 'k_public');
+            await updateDoc(doc(db, "vaults", vaultId), { keys: updatedKeys });
+            showToast('Public key cleared — a new one will be generated on next visit.', 'success');
+            await loadVault();
+        } catch (err) {
+            showToast('Failed: ' + err.message, 'error');
+        }
+    });
+
+    publicTerminateBtn.addEventListener('click', async () => {
+        try {
+            const snap = await getDoc(doc(db, "vaults", vaultId));
+            const data = snap.data();
+            const keys = Array.isArray(data.keys) ? data.keys : [];
+            const idx = keys.findIndex(k => k.id === 'k_public');
+            if (idx === -1) { showToast('No public key exists yet to terminate.', 'info'); return; }
+            const nowTerminated = !keys[idx].terminated;
+            const updatedKeys = keys.map((k, i) => i === idx ? { ...k, terminated: nowTerminated } : k);
+            await updateDoc(doc(db, "vaults", vaultId), { keys: updatedKeys });
+            showToast(nowTerminated ? 'Public key terminated.' : 'Public key reactivated.', 'success');
+            await loadVault();
+        } catch (err) {
+            showToast('Failed: ' + err.message, 'error');
+        }
+    });
 
     // ---------------- Banned users ----------------
     function renderBannedUsersList() {
@@ -466,21 +513,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------------- Load / migrate vault data ----------------
     function keysFromVaultData(data) {
+        // Only private/whitelist keys live in the manual list now — the public
+        // key (id "k_public") is auto-generated and managed in its own section.
         if (Array.isArray(data.keys) && data.keys.length > 0) {
-            return data.keys.map((k, i) => ({
-                id: k.id || ('k_' + Math.random().toString(36).substring(2, 10)),
-                label: k.label || 'Key',
-                key: k.key || '',
-                priority: k.priority || (i + 1),
-                durationDays: k.durationDays != null ? k.durationDays : null,
-                keyGeneratedAt: k.keyGeneratedAt || null,
-                maxUsers: k.maxUsers || 1,
-                maxUsersUnlimited: k.maxUsersUnlimited === true || k.maxUsers === 'unlimited',
-                boundUsers: Array.isArray(k.boundUsers) ? k.boundUsers : [],
-                terminated: !!k.terminated,
-                adGateUrl: k.adGateUrl || '',
-                visibility: k.visibility === 'private' ? 'private' : 'public'
-            }));
+            return data.keys
+                .filter(k => k.id !== 'k_public' && k.visibility !== 'public')
+                .map((k, i) => ({
+                    id: k.id || ('k_' + Math.random().toString(36).substring(2, 10)),
+                    label: k.label || 'Key',
+                    key: k.key || '',
+                    priority: k.priority || (i + 1),
+                    durationDays: k.durationDays != null ? k.durationDays : null,
+                    keyGeneratedAt: k.keyGeneratedAt || null,
+                    maxUsers: k.maxUsers || 1,
+                    maxUsersUnlimited: k.maxUsersUnlimited === true || k.maxUsers === 'unlimited',
+                    boundUsers: Array.isArray(k.boundUsers) ? k.boundUsers : [],
+                    terminated: !!k.terminated
+                }));
         }
         if (data.requireKey && data.key) {
             return [{
@@ -488,10 +537,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 durationDays: null, keyGeneratedAt: data.keyGeneratedAt || null,
                 maxUsers: data.maxUsers || 1, maxUsersUnlimited: !data.accountBinding,
                 boundUsers: Array.isArray(data.boundUsers) ? data.boundUsers : [],
-                terminated: false, adGateUrl: '', visibility: 'public'
+                terminated: false
             }];
         }
         return [];
+    }
+
+    function getPublicKeyEntry(data) {
+        return (Array.isArray(data.keys) ? data.keys : []).find(k => k.id === 'k_public') || null;
     }
 
     async function loadVault() {
@@ -520,11 +573,28 @@ document.addEventListener('DOMContentLoaded', () => {
             chkKeySystem.checked = !!data.requireKey;
             keySystemFields.classList.toggle('hidden', !data.requireKey);
             currentKeys = keysFromVaultData(data);
-            // Keys are auto-generated: a vault with the key system on always has one.
-            if (data.requireKey && currentKeys.length === 0) {
-                currentKeys.push(newKeyObject());
-            }
             renderKeysList();
+
+            const cfg = data.publicKeyConfig || {};
+            chkPublicKey.checked = !!cfg.enabled;
+            publicKeyFields.classList.toggle('hidden', !cfg.enabled);
+            const presetDays = [1, 3, 7, 14, 30];
+            if (!cfg.durationDays) {
+                publicDurationSelect.value = 'permanent';
+                publicDurationCustom.classList.add('hidden');
+            } else if (presetDays.includes(cfg.durationDays)) {
+                publicDurationSelect.value = String(cfg.durationDays);
+                publicDurationCustom.classList.add('hidden');
+            } else {
+                publicDurationSelect.value = 'custom';
+                publicDurationCustom.value = cfg.durationDays;
+                publicDurationCustom.classList.remove('hidden');
+            }
+            publicMaxUsersInput.value = cfg.maxUsers || 1;
+            publicMaxUsersInput.disabled = !!cfg.maxUsersUnlimited;
+            publicUnlimitedToggle.checked = !!cfg.maxUsersUnlimited;
+            publicAdGateInput.value = cfg.adGateUrl || '';
+            renderPublicKeyStatus(getPublicKeyEntry(data));
 
             chkGuiMode.checked = !!data.guiMode;
             chkIpLock.checked = !!data.ipLock;
@@ -563,31 +633,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     keysystemApplyBtn.addEventListener('click', async () => {
         if (chkKeySystem.checked && currentKeys.length === 0) {
-            // Never block on an empty list — keys are auto-generated.
-            currentKeys.push(newKeyObject());
-            renderKeysList();
+            showToast('Add at least one key, or turn the key system off.', 'error');
+            return;
         }
         if (chkKeySystem.checked && currentKeys.some(k => !k.key.trim())) {
             showToast('One of your keys is empty — fill it in or delete that key.', 'error');
             return;
         }
-        if (chkKeySystem.checked && currentKeys.some(k => !isSafeUrl(k.adGateUrl))) {
-            showToast('One of your ad-gate links looks invalid — only http/https links are allowed.', 'error', 5000);
+        if (chkPublicKey.checked && !isSafeUrl(publicAdGateInput.value.trim())) {
+            showToast('The public key ad-gate link looks invalid — only http/https links are allowed.', 'error', 5000);
             return;
         }
 
         const requireKey = chkKeySystem.checked;
         const guiMode = requireKey && chkGuiMode.checked;
         const ipLock = requireKey && chkIpLock.checked;
-        const keysPayload = requireKey ? currentKeys.map(k => ({
+        const privateKeysPayload = requireKey ? currentKeys.map(k => ({
             id: k.id, label: k.label.trim() || 'Key', key: k.key.trim(),
             priority: k.priority || 1, durationDays: k.durationDays || null,
             keyGeneratedAt: k.keyGeneratedAt || Date.now(),
             maxUsers: Math.max(1, k.maxUsers || 1), maxUsersUnlimited: !!k.maxUsersUnlimited,
             boundUsers: Array.isArray(k.boundUsers) ? k.boundUsers : [],
-            terminated: !!k.terminated, adGateUrl: k.adGateUrl || '',
-            visibility: k.visibility === 'private' ? 'private' : 'public'
+            terminated: !!k.terminated, visibility: 'private'
         })) : [];
+
+        const publicDurationVal = publicDurationSelect.value;
+        const publicKeyConfig = {
+            enabled: requireKey && chkPublicKey.checked,
+            label: 'Public Key',
+            durationDays: publicDurationVal === 'permanent' ? null
+                : publicDurationVal === 'custom' ? (parseInt(publicDurationCustom.value, 10) || null)
+                : parseInt(publicDurationVal, 10),
+            maxUsers: Math.max(1, parseInt(publicMaxUsersInput.value, 10) || 1),
+            maxUsersUnlimited: !!publicUnlimitedToggle.checked,
+            adGateUrl: publicAdGateInput.value.trim()
+        };
 
         const originalHtml = keysystemApplyBtn.innerHTML;
         keysystemApplyBtn.disabled = true;
@@ -597,10 +677,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const existingSnap = await getDoc(doc(db, "vaults", vaultId));
             const existing = existingSnap.exists() ? existingSnap.data() : {};
             const boundIp = ipLock ? (existing.boundIp || null) : null;
-            const primaryKey = keysPayload[0] || null;
+
+            // Preserve the live auto-generated public key entry as-is — it's
+            // managed by Regenerate/Terminate, not rebuilt here.
+            const existingPublicEntry = (Array.isArray(existing.keys) ? existing.keys : []).find(k => k.id === 'k_public');
+            const keysPayload = existingPublicEntry ? [...privateKeysPayload, existingPublicEntry] : privateKeysPayload;
+            const primaryKey = privateKeysPayload[0] || null;
 
             await updateDoc(doc(db, "vaults", vaultId), {
-                requireKey, guiMode, keys: keysPayload,
+                requireKey, guiMode, keys: keysPayload, publicKeyConfig,
                 key: primaryKey ? primaryKey.key : '',
                 keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
                 ipLock, boundIp,

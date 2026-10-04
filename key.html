@@ -200,14 +200,14 @@
                     showOnly(errorState);
                     return;
                 }
-                if (!data.keys.length) {
-                    errorMessage.textContent = "This vault's keys are private/whitelist-only, expired, or terminated. Contact the owner directly.";
+                if (!data.publicKey) {
+                    errorMessage.textContent = "This vault's keys are private/whitelist-only. Contact the owner directly.";
                     showOnly(errorState);
                     return;
                 }
                 getkeyTitle.innerHTML = `Get Your Key — <span class="text-cyan">${escapeHtml(data.title || 'Untitled Vault')}</span>`;
                 keysCardsList.innerHTML = '';
-                data.keys.forEach(k => buildKeyCard(k));
+                buildKeyCard(data.publicKey);
                 showOnly(getkeyState);
             } catch (err) {
                 errorMessage.textContent = 'Something went wrong loading this vault.';
@@ -237,60 +237,69 @@
             const copyLsBtn = node.querySelector('.copy-ls-btn');
             const openVaultLink = node.querySelector('.open-vault-link');
 
-            labelEl.textContent = keyDef.label || 'Key';
+            labelEl.textContent = keyDef.label || 'Public Key';
             if (!keyDef.durationDays) {
                 rotationTag.innerHTML = `<i class="fa-solid fa-infinity"></i> Permanent`;
                 rotationTag.classList.remove('hidden');
             }
 
-            function beginReveal() {
+            async function beginReveal() {
                 idleBlock.classList.add('hidden');
                 adgateStep.classList.add('hidden');
                 loadingBlock.classList.remove('hidden');
+                progressFill.style.width = '0%';
 
-                const steps = ['Verifying request…', 'Checking vault…', 'Preparing your key…'];
-                let pct = 0;
-                let stepIndex = 0;
-                progressLabel.textContent = steps[0];
-
-                const progressInterval = setInterval(() => {
-                    pct += 8;
-                    progressFill.style.width = Math.min(pct, 100) + '%';
-                    const newStep = Math.min(Math.floor(pct / 34), steps.length - 1);
-                    if (newStep !== stepIndex) {
-                        stepIndex = newStep;
-                        progressLabel.textContent = steps[stepIndex];
-                    }
-                    if (pct >= 100) {
-                        clearInterval(progressInterval);
-                        revealKey();
-                    }
-                }, 180);
-            }
-
-            async function revealKey() {
-                const now = Date.now();
-                let keyValue = null;
+                let startResp;
                 try {
-                    const r = await fetch(`/api/keypage?id=${encodeURIComponent(vaultId)}&keyId=${encodeURIComponent(keyDef.id)}`);
-                    const d = await r.json();
-                    if (d.ok) keyValue = d.key;
-                } catch (e) {}
+                    const r = await fetch(`/api/keypage?id=${encodeURIComponent(vaultId)}&action=start`);
+                    startResp = await r.json();
+                } catch (e) { startResp = { ok: false }; }
 
-                if (!keyValue) {
+                if (!startResp.ok) {
                     loadingBlock.classList.add('hidden');
                     idleBlock.classList.remove('hidden');
-                    showToast('This key is unavailable or has expired. Contact the owner.', 'error', 5000);
+                    showToast(startResp.message || 'Could not start — try again.', 'error');
                     return;
                 }
 
-                keyOutput.value = keyValue;
-                loadstringOutput.value = buildLoadstring(vaultId, keyValue);
-                openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(keyValue)}`;
+                const waitMs = startResp.waitMs || 15000;
+                const startedAt = Date.now();
 
-                if (keyDef.durationDays && keyDef.keyGeneratedAt) {
+                const tick = setInterval(() => {
+                    const elapsed = Date.now() - startedAt;
+                    const pct = Math.min(100, (elapsed / waitMs) * 100);
+                    progressFill.style.width = pct + '%';
+                    const secsLeft = Math.max(0, Math.ceil((waitMs - elapsed) / 1000));
+                    progressLabel.textContent = secsLeft > 0 ? `Please wait ${secsLeft}s…` : 'Almost there…';
+                    if (elapsed >= waitMs) {
+                        clearInterval(tick);
+                        claimKey(startResp.token);
+                    }
+                }, 100);
+            }
+
+            async function claimKey(token) {
+                progressLabel.textContent = 'Getting your key…';
+                let d;
+                try {
+                    const r = await fetch(`/api/keypage?id=${encodeURIComponent(vaultId)}&action=claim&token=${encodeURIComponent(token)}`);
+                    d = await r.json();
+                } catch (e) { d = { ok: false }; }
+
+                if (!d.ok) {
+                    loadingBlock.classList.add('hidden');
+                    idleBlock.classList.remove('hidden');
+                    showToast(d.message || 'Could not get a key. Try again.', 'error', 5000);
+                    return;
+                }
+
+                keyOutput.value = d.key;
+                loadstringOutput.value = buildLoadstring(vaultId, d.key);
+                openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(d.key)}`;
+
+                if (d.expiresAt) {
                     expiryTag.classList.remove('hidden');
-                    expiryText.textContent = formatCountdown((keyDef.keyGeneratedAt + keyDef.durationDays * HOUR_MS * 24) - now);
+                    expiryText.textContent = formatCountdown(d.expiresAt - Date.now());
                 }
 
                 loadingBlock.classList.add('hidden');
@@ -302,68 +311,7 @@
                 adgateStep.classList.remove('hidden');
                 idleBlock.classList.add('hidden');
                 adgateLink.href = keyDef.adGateUrl;
-
-                // Anti-bypass gate: after opening the sponsor link the visitor must
-                // wait a randomized 10–20s before the key unlocks. The timestamp is
-                // kept in localStorage so refreshing the page can't skip the wait.
-                const gateStoreKey = `vx_gate_${vaultId}_${keyDef.id}`;
-                let countdownTimer = null;
-
-                function readGate() {
-                    try { return JSON.parse(localStorage.getItem(gateStoreKey)) || null; }
-                    catch { return null; }
-                }
-                function remainingMs() {
-                    const gate = readGate();
-                    if (!gate || !gate.start || !gate.wait) return null; // link never opened
-                    return Math.max(0, (gate.start + gate.wait) - Date.now());
-                }
-                function unlockContinue() {
-                    adgateContinueBtn.disabled = false;
-                    adgateContinueBtn.innerHTML = '<i class="fa-solid fa-check"></i> Step 2: I\'m Back — Get Key';
-                }
-                function runCountdown() {
-                    if (countdownTimer) clearInterval(countdownTimer);
-                    const tick = () => {
-                        const left = remainingMs();
-                        if (left === null) { clearInterval(countdownTimer); countdownTimer = null; return; }
-                        if (left <= 0) {
-                            clearInterval(countdownTimer);
-                            countdownTimer = null;
-                            unlockContinue();
-                            return;
-                        }
-                        adgateContinueBtn.disabled = true;
-                        adgateContinueBtn.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Step 2: Wait ${Math.ceil(left / 1000)}s…`;
-                    };
-                    tick();
-                    countdownTimer = setInterval(tick, 250);
-                }
-
-                adgateLink.addEventListener('click', () => {
-                    if (!readGate()) {
-                        const gate = { start: Date.now(), wait: 10000 + Math.floor(Math.random() * 10001) };
-                        try { localStorage.setItem(gateStoreKey, JSON.stringify(gate)); } catch (e) {}
-                    }
-                    runCountdown();
-                });
-
-                adgateContinueBtn.addEventListener('click', () => {
-                    const left = remainingMs();
-                    if (left === null) {
-                        showToast('Open the sponsor link in Step 1 first, then wait out the short timer.', 'error', 4500);
-                        return;
-                    }
-                    if (left > 0) {
-                        runCountdown();
-                        showToast(`Hold on — ${Math.ceil(left / 1000)}s left before your key unlocks.`, 'info', 3000);
-                        return;
-                    }
-                    beginReveal();
-                });
-
-                // Resume the countdown if they come back mid-wait (e.g. after a refresh).
-                if (remainingMs() > 0) runCountdown();
+                adgateContinueBtn.addEventListener('click', beginReveal);
             } else {
                 adgateStep.classList.add('hidden');
                 getKeyBtn.addEventListener('click', beginReveal);
@@ -385,7 +333,7 @@
             keysCardsList.appendChild(node);
         }
 
-        loadVault();
+                loadVault();
     </script>
 </body>
 </html>

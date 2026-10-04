@@ -1,44 +1,119 @@
-import { db } from './_admin.js';
+import { db, FieldValue } from './_admin.js';
 
-// Public data for key.html. Never returns private/terminated keys, and never
-// returns a key's value until it is explicitly requested (keyId=...).
+// Public endpoint behind key.html.
+// - GET               -> vault info + public key settings (no key values, no private keys)
+// - GET ?action=start  -> begins a timed hold before a key can be claimed
+// - GET ?action=claim  -> issues/returns the current public key, IF enough time has passed
+//
+// The wait is enforced using a timestamp stored server-side when the hold starts.
+// Nothing the browser sends is trusted for timing, so it can't be skipped by
+// editing the page's JavaScript.
+const WAIT_MS = 15000;
+const PUBLIC_KEY_ID = 'k_public';
+
 function json(res, status, body) {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');
     return res.status(status).json(body);
 }
 
+function randomKey() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = 'VX-';
+    for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+}
+
 export default async function handler(req, res) {
-    const { id, keyId } = req.query;
+    const { id, action, token } = req.query;
     if (!id) return json(res, 400, { ok: false, message: 'Missing vault id.' });
+
+    const vaultRef = db.collection('vaults').doc(String(id));
+
     try {
-        const snap = await db.collection('vaults').doc(String(id)).get();
-        if (!snap.exists) return json(res, 404, { ok: false, message: "This vault ID doesn't exist or may have been deleted." });
-        const v = snap.data();
-        let keys = Array.isArray(v.keys) && v.keys.length ? v.keys
-            : (v.requireKey && v.key ? [{ id: 'k_legacy', label: 'Main Key', key: v.key, priority: 1, durationDays: null, keyGeneratedAt: v.keyGeneratedAt || null }] : []);
-
-        if (!v.requireKey || keys.length === 0) return json(res, 200, { ok: true, requireKey: false, title: v.title || '' });
-
-        const now = Date.now();
-        const isLive = k => !k.terminated && k.visibility !== 'private' &&
-            !(k.durationDays && k.keyGeneratedAt && now > k.keyGeneratedAt + k.durationDays * 86400000);
-        const publicKeys = keys.filter(isLive).sort((a, b) => (a.priority || 0) - (b.priority || 0));
-
-        if (keyId) {
-            const k = publicKeys.find(x => x.id === keyId);
-            if (!k) return json(res, 404, { ok: false, message: 'This key is unavailable or has expired.' });
-            return json(res, 200, { ok: true, key: k.key });
+        if (action === 'start') {
+            const snap = await vaultRef.get();
+            if (!snap.exists) return json(res, 404, { ok: false, message: 'Vault not found.' });
+            const v = snap.data();
+            if (!v.requireKey || !v.publicKeyConfig || !v.publicKeyConfig.enabled) {
+                return json(res, 400, { ok: false, message: 'This vault has no public key to get.' });
+            }
+            const claimToken = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+            await vaultRef.set({ pendingClaims: { [claimToken]: Date.now() } }, { merge: true });
+            return json(res, 200, { ok: true, token: claimToken, waitMs: WAIT_MS });
         }
 
+        if (action === 'claim') {
+            if (!token) return json(res, 400, { ok: false, message: 'Missing token.' });
+
+            const result = await db.runTransaction(async (tx) => {
+                const snap = await tx.get(vaultRef);
+                if (!snap.exists) return { ok: false, status: 404, message: 'Vault not found.' };
+                const v = snap.data();
+                const cfg = v.publicKeyConfig;
+                if (!v.requireKey || !cfg || !cfg.enabled) {
+                    return { ok: false, status: 400, message: 'This vault has no public key to get.' };
+                }
+                const issuedAt = v.pendingClaims && v.pendingClaims[token];
+                if (!issuedAt) {
+                    return { ok: false, status: 400, message: 'That request expired or is invalid. Start again.' };
+                }
+                if (Date.now() - issuedAt < WAIT_MS) {
+                    return { ok: false, status: 425, message: "Please wait — the timer isn't done yet." };
+                }
+
+                const keys = Array.isArray(v.keys) ? v.keys : [];
+                const idx = keys.findIndex(k => k.id === PUBLIC_KEY_ID);
+                const now = Date.now();
+                const isLive = k => k && !k.terminated &&
+                    !(k.durationDays && k.keyGeneratedAt && now > k.keyGeneratedAt + k.durationDays * 86400000);
+
+                let updatedKeys = keys;
+                let activeKey;
+                if (idx !== -1 && isLive(keys[idx])) {
+                    activeKey = keys[idx];
+                } else {
+                    activeKey = {
+                        id: PUBLIC_KEY_ID, label: cfg.label || 'Public Key', key: randomKey(),
+                        priority: 0, durationDays: cfg.durationDays || null, keyGeneratedAt: now,
+                        maxUsers: cfg.maxUsersUnlimited ? 1 : Math.max(1, cfg.maxUsers || 1),
+                        maxUsersUnlimited: !!cfg.maxUsersUnlimited, boundUsers: [], terminated: false,
+                        adGateUrl: cfg.adGateUrl || '', visibility: 'public', autoGenerated: true
+                    };
+                    updatedKeys = idx !== -1 ? keys.map((k, i) => i === idx ? activeKey : k) : [...keys, activeKey];
+                }
+
+                tx.update(vaultRef, {
+                    keys: updatedKeys,
+                    [`pendingClaims.${token}`]: FieldValue.delete()
+                });
+
+                return {
+                    ok: true, key: activeKey.key,
+                    expiresAt: activeKey.durationDays ? activeKey.keyGeneratedAt + activeKey.durationDays * 86400000 : null
+                };
+            });
+
+            return json(res, result.status || 200, result);
+        }
+
+        // Default: plain info for the Get-Key page.
+        const snap = await vaultRef.get();
+        if (!snap.exists) return json(res, 404, { ok: false, message: "This vault ID doesn't exist or may have been deleted." });
+        const v = snap.data();
+        if (!v.requireKey) return json(res, 200, { ok: true, requireKey: false, title: v.title || '' });
+
+        const cfg = v.publicKeyConfig;
+        if (!cfg || !cfg.enabled) {
+            return json(res, 200, { ok: true, requireKey: true, title: v.title || '', publicKey: null });
+        }
         return json(res, 200, {
             ok: true, requireKey: true, title: v.title || '',
-            keys: publicKeys.map(k => ({
-                id: k.id, label: k.label || 'Key', priority: k.priority || 0,
-                durationDays: k.durationDays || null, keyGeneratedAt: k.keyGeneratedAt || null,
-                adGateUrl: k.adGateUrl || ''
-            })),
-            hasPrivateOnly: publicKeys.length === 0
+            publicKey: {
+                label: cfg.label || 'Public Key',
+                durationDays: cfg.durationDays || null,
+                adGateUrl: cfg.adGateUrl || ''
+            }
         });
     } catch (err) {
         return json(res, 500, { ok: false, message: 'Server error.' });
