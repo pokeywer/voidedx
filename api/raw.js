@@ -21,7 +21,6 @@ export default async function handler(req, res) {
         return res.status(400).send('-- Error: Missing Vault ID');
     }
 
-    // Real browser visitors get sent to the SECURED landing page instead of raw code.
     if (!isExecutorRequest(req)) {
         const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
         return res.redirect(302, `/vault.html?id=${encodeURIComponent(id)}${keyParam}`);
@@ -36,8 +35,6 @@ export default async function handler(req, res) {
 
         const vaultData = docSnap.data();
 
-        // GUI Mode: no key in the URL at all — send an in-game popup instead that
-        // asks the player to type their key, then verifies it via /api/verify.
         if (vaultData.requireKey && vaultData.guiMode) {
             res.setHeader('Content-Type', 'text/plain');
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -51,9 +48,6 @@ export default async function handler(req, res) {
             return res.status(200).send(vaultData.code);
         }
 
-        // Key-in-URL mode: fast-fail on an obviously missing key, otherwise hand off
-        // to a loader that identifies the player and asks /api/verify to do the real
-        // checking (key match, expiry, termination, bans, IP lock, player limits).
         if (!key) {
             return res.status(403).send(`
 -- [VOIDEDX SECURITY ALERT]
@@ -115,7 +109,8 @@ function getOrigin(req) {
 
 function buildGuiLoader(id, origin) {
     const verifyBase = `${origin}/api/verify`;
-    const keyPageUrl = `${origin}/key.html?id=${id}`;
+    const keyPageUrl = `${origin}/key.html?id=${encodeURIComponent(id)}`;
+    
     return `
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -130,14 +125,14 @@ local function getGuiParent()
     return player:WaitForChild("PlayerGui")
 end
 
--- Theme, matching the VoidedX website
-local COL_BG = Color3.fromRGB(11, 13, 18)
-local COL_INPUT = Color3.fromRGB(22, 26, 36)
-local COL_BORDER = Color3.fromRGB(33, 38, 53)
+local COL_BG = Color3.fromRGB(15, 18, 26)
+local COL_CARD = Color3.fromRGB(22, 27, 38)
+local COL_INPUT = Color3.fromRGB(29, 35, 49)
+local COL_BORDER = Color3.fromRGB(45, 55, 75)
 local COL_CYAN = Color3.fromRGB(6, 182, 212)
 local COL_ACCENT = Color3.fromRGB(99, 102, 241)
 local COL_TEXT = Color3.fromRGB(248, 250, 252)
-local COL_MUTED = Color3.fromRGB(100, 116, 139)
+local COL_MUTED = Color3.fromRGB(148, 163, 184)
 local COL_RED = Color3.fromRGB(239, 68, 68)
 local COL_GREEN = Color3.fromRGB(16, 185, 129)
 
@@ -151,7 +146,6 @@ screenGui.IgnoreGuiInset = true
 screenGui.DisplayOrder = 999
 screenGui.Parent = getGuiParent()
 
--- Dimmed backdrop, fades in
 local overlay = Instance.new("Frame")
 overlay.Size = UDim2.fromScale(1, 1)
 overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -159,25 +153,20 @@ overlay.BackgroundTransparency = 1
 overlay.BorderSizePixel = 0
 overlay.ZIndex = 1
 overlay.Parent = screenGui
-TweenService:Create(overlay, TweenInfo.new(0.35, EASE_OUT), { BackgroundTransparency = 0.45 }):Play()
+TweenService:Create(overlay, TweenInfo.new(0.35, EASE_OUT), { BackgroundTransparency = 0.5 }):Play()
 
--- Card
 local card = Instance.new("Frame")
 card.AnchorPoint = Vector2.new(0.5, 0.5)
 card.Position = UDim2.new(0.5, 0, 0.5, 0)
-card.Size = UDim2.new(0.86, 0, 0, 0)
+card.Size = UDim2.new(0, 340, 0, 0)
 card.AutomaticSize = Enum.AutomaticSize.Y
-card.BackgroundColor3 = COL_BG
+card.BackgroundColor3 = COL_CARD
 card.BorderSizePixel = 0
 card.ZIndex = 2
 card.Parent = screenGui
 
-local cardConstraint = Instance.new("UISizeConstraint")
-cardConstraint.MaxSize = Vector2.new(360, 10000)
-cardConstraint.Parent = card
-
 local cardCorner = Instance.new("UICorner")
-cardCorner.CornerRadius = UDim.new(0, 16)
+cardCorner.CornerRadius = UDim.new(0, 14)
 cardCorner.Parent = card
 
 local cardStroke = Instance.new("UIStroke")
@@ -185,88 +174,77 @@ cardStroke.Color = COL_BORDER
 cardStroke.Thickness = 1
 cardStroke.Parent = card
 
--- Entrance pop-in animation
 local uiScale = Instance.new("UIScale")
-uiScale.Scale = 0.82
+uiScale.Scale = 0.85
 uiScale.Parent = card
 card.BackgroundTransparency = 1
 cardStroke.Transparency = 1
-TweenService:Create(uiScale, TweenInfo.new(0.4, EASE_BACK), { Scale = 1 }):Play()
-TweenService:Create(card, TweenInfo.new(0.25, EASE_OUT), { BackgroundTransparency = 0 }):Play()
-TweenService:Create(cardStroke, TweenInfo.new(0.3, EASE_OUT), { Transparency = 0 }):Play()
 
--- Shimmering gradient accent bar across the top
+TweenService:Create(uiScale, TweenInfo.new(0.35, EASE_BACK), { Scale = 1 }):Play()
+TweenService:Create(card, TweenInfo.new(0.25, EASE_OUT), { BackgroundTransparency = 0 }):Play()
+TweenService:Create(cardStroke, TweenInfo.new(0.25, EASE_OUT), { Transparency = 0 }):Play()
+
 local accentBar = Instance.new("Frame")
-accentBar.Size = UDim2.new(1, 0, 0, 4)
+accentBar.Size = UDim2.new(1, 0, 0, 3)
 accentBar.BorderSizePixel = 0
 accentBar.ZIndex = 3
 accentBar.Parent = card
+
 local accentCorner = Instance.new("UICorner")
 accentCorner.CornerRadius = UDim.new(1, 0)
 accentCorner.Parent = accentBar
+
 local accentGradient = Instance.new("UIGradient")
 accentGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 accentGradient.Parent = accentBar
-task.spawn(function()
-    while accentBar.Parent do
-        TweenService:Create(accentGradient, TweenInfo.new(2, Enum.EasingStyle.Sine), { Offset = Vector2.new(0.4, 0) }):Play()
-        task.wait(2)
-        TweenService:Create(accentGradient, TweenInfo.new(2, Enum.EasingStyle.Sine), { Offset = Vector2.new(-0.4, 0) }):Play()
-        task.wait(2)
-    end
-end)
-
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1, 0, 0, 0)
-content.AutomaticSize = Enum.AutomaticSize.Y
-content.BackgroundTransparency = 1
-content.ZIndex = 2
-content.Parent = card
 
 local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 26)
-padding.PaddingBottom = UDim.new(0, 22)
-padding.PaddingLeft = UDim.new(0, 22)
-padding.PaddingRight = UDim.new(0, 22)
-padding.Parent = content
+padding.PaddingTop = UDim.new(0, 24)
+padding.PaddingBottom = UDim.new(0, 20)
+padding.PaddingLeft = UDim.new(0, 20)
+padding.PaddingRight = UDim.new(0, 20)
+padding.Parent = card
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 12)
+layout.Padding = UDim.new(0, 10)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = content
+layout.Parent = card
 
--- Badge icon with gradient background
 local badge = Instance.new("Frame")
-badge.Size = UDim2.new(0, 48, 0, 48)
+badge.Size = UDim2.new(0, 44, 0, 44)
 badge.BackgroundColor3 = COL_CYAN
 badge.BorderSizePixel = 0
 badge.LayoutOrder = 1
-badge.Parent = content
+badge.Parent = card
+
 local badgeCorner = Instance.new("UICorner")
-badgeCorner.CornerRadius = UDim.new(0, 12)
+badgeCorner.CornerRadius = UDim.new(0, 10)
 badgeCorner.Parent = badge
+
 local badgeGradient = Instance.new("UIGradient")
 badgeGradient.Rotation = 45
 badgeGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 badgeGradient.Parent = badge
+
 local badgeIcon = Instance.new("TextLabel")
 badgeIcon.Size = UDim2.fromScale(1, 1)
 badgeIcon.BackgroundTransparency = 1
-badgeIcon.Text = "\\u{1F511}"
-badgeIcon.TextScaled = true
+badgeIcon.Text = "🔑"
+badgeIcon.TextSize = 20
 badgeIcon.Font = Enum.Font.GothamBold
+badgeIcon.TextColor3 = COL_TEXT
 badgeIcon.Parent = badge
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 24)
+title.Size = UDim2.new(1, 0, 0, 22)
 title.BackgroundTransparency = 1
 title.Text = "VoidedX Key System"
 title.TextColor3 = COL_TEXT
 title.Font = Enum.Font.GothamBold
-title.TextScaled = true
+title.TextSize = 18
 title.LayoutOrder = 2
-title.Parent = content
+title.Parent = card
 
 local subtitle = Instance.new("TextLabel")
 subtitle.Size = UDim2.new(1, 0, 0, 16)
@@ -274,60 +252,64 @@ subtitle.BackgroundTransparency = 1
 subtitle.Text = "Enter your key to continue"
 subtitle.TextColor3 = COL_MUTED
 subtitle.Font = Enum.Font.Gotham
-subtitle.TextScaled = true
+subtitle.TextSize = 13
 subtitle.LayoutOrder = 3
-subtitle.Parent = content
+subtitle.Parent = card
 
--- Input field with focus glow
 local inputBox = Instance.new("TextBox")
-inputBox.Size = UDim2.new(1, 0, 0, 42)
+inputBox.Size = UDim2.new(1, 0, 0, 40)
 inputBox.BackgroundColor3 = COL_INPUT
-inputBox.TextColor3 = COL_CYAN
-inputBox.PlaceholderText = "Enter key here..."
+inputBox.TextColor3 = COL_TEXT
+inputBox.PlaceholderText = "Enter key..."
 inputBox.PlaceholderColor3 = COL_MUTED
 inputBox.Text = ""
 inputBox.ClearTextOnFocus = false
 inputBox.Font = Enum.Font.Code
-inputBox.TextScaled = true
+inputBox.TextSize = 13
 inputBox.LayoutOrder = 4
-inputBox.Parent = content
+inputBox.Parent = card
+
 local inputCorner = Instance.new("UICorner")
-inputCorner.CornerRadius = UDim.new(0, 9)
+inputCorner.CornerRadius = UDim.new(0, 8)
 inputCorner.Parent = inputBox
+
 local inputStroke = Instance.new("UIStroke")
 inputStroke.Color = COL_BORDER
 inputStroke.Thickness = 1
 inputStroke.Parent = inputBox
+
 local inputPad = Instance.new("UIPadding")
-inputPad.PaddingLeft = UDim.new(0, 12)
-inputPad.PaddingRight = UDim.new(0, 12)
+inputPad.PaddingLeft = UDim.new(0, 10)
+inputPad.PaddingRight = UDim.new(0, 10)
 inputPad.Parent = inputBox
 
 inputBox.Focused:Connect(function()
-    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_CYAN, Thickness = 2 }):Play()
+    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_CYAN }):Play()
 end)
 inputBox.FocusLost:Connect(function()
-    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_BORDER, Thickness = 1 }):Play()
+    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_BORDER }):Play()
 end)
 
--- Submit button with gradient, hover and press feedback
 local submitBtn = Instance.new("TextButton")
-submitBtn.Size = UDim2.new(1, 0, 0, 42)
+submitBtn.Size = UDim2.new(1, 0, 0, 40)
 submitBtn.BackgroundColor3 = COL_CYAN
-submitBtn.Text = "Submit"
+submitBtn.Text = "Submit Key"
 submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Font = Enum.Font.GothamBold
-submitBtn.TextScaled = true
+submitBtn.TextSize = 14
 submitBtn.AutoButtonColor = false
 submitBtn.LayoutOrder = 5
-submitBtn.Parent = content
+submitBtn.Parent = card
+
 local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 9)
+btnCorner.CornerRadius = UDim.new(0, 8)
 btnCorner.Parent = submitBtn
+
 local btnGradient = Instance.new("UIGradient")
 btnGradient.Rotation = 90
 btnGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 btnGradient.Parent = submitBtn
+
 local btnScale = Instance.new("UIScale")
 btnScale.Parent = submitBtn
 
@@ -350,40 +332,37 @@ statusLabel.BackgroundTransparency = 1
 statusLabel.Text = ""
 statusLabel.TextColor3 = COL_RED
 statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextScaled = true
-statusLabel.TextTransparency = 1
+statusLabel.TextSize = 12
+statusLabel.TextWrapped = true
 statusLabel.LayoutOrder = 6
-statusLabel.Parent = content
+statusLabel.Parent = card
 
 local getKeyBtn = Instance.new("TextButton")
-getKeyBtn.Size = UDim2.new(1, 0, 0, 22)
+getKeyBtn.Size = UDim2.new(1, 0, 0, 20)
 getKeyBtn.BackgroundTransparency = 1
-getKeyBtn.Text = "Need a key? Tap to copy the Get-Key link"
+getKeyBtn.Text = "Get Key Link"
 getKeyBtn.TextColor3 = COL_MUTED
 getKeyBtn.Font = Enum.Font.Gotham
-getKeyBtn.TextScaled = true
+getKeyBtn.TextSize = 12
 getKeyBtn.LayoutOrder = 7
-getKeyBtn.Parent = content
+getKeyBtn.Parent = card
 
 local function setStatus(text, color)
     statusLabel.Text = text
     statusLabel.TextColor3 = color
-    statusLabel.TextTransparency = 0
 end
 
 local function shakeCard()
-    local originalPos = card.Position
-    local seq = {
-        UDim2.new(originalPos.X.Scale, originalPos.X.Offset - 8, originalPos.Y.Scale, originalPos.Y.Offset),
-        UDim2.new(originalPos.X.Scale, originalPos.X.Offset + 8, originalPos.Y.Scale, originalPos.Y.Offset),
-        UDim2.new(originalPos.X.Scale, originalPos.X.Offset - 5, originalPos.Y.Scale, originalPos.Y.Offset),
-        originalPos
-    }
-    for _, pos in ipairs(seq) do
-        TweenService:Create(card, TweenInfo.new(0.06, Enum.EasingStyle.Linear), { Position = pos }):Play()
-        task.wait(0.06)
-    end
-    local flashColor = cardStroke.Color
+    local origPos = card.Position
+    task.spawn(function()
+        for i = 1, 3 do
+            card.Position = origPos + UDim2.new(0, -5, 0, 0)
+            task.wait(0.04)
+            card.Position = origPos + UDim2.new(0, 5, 0, 0)
+            task.wait(0.04)
+        end
+        card.Position = origPos
+    end)
     cardStroke.Color = COL_RED
     TweenService:Create(cardStroke, TweenInfo.new(0.4, EASE_OUT), { Color = COL_BORDER }):Play()
 end
@@ -391,39 +370,26 @@ end
 getKeyBtn.MouseButton1Click:Connect(function()
     local copied = pcall(function() setclipboard(${luaString(keyPageUrl)}) end)
     if copied then
-        setStatus("Link copied! Paste it in your browser.", COL_GREEN)
+        setStatus("Link copied to clipboard!", COL_GREEN)
     else
-        setStatus("Get a key at: ${keyPageUrl}", COL_MUTED)
+        setStatus("Link: " .. ${luaString(keyPageUrl)}, COL_MUTED)
     end
 end)
 
 local verifying = false
-local dotsRunning = false
-
-local function animateDots(label, baseText)
-    dotsRunning = true
-    task.spawn(function()
-        local dots = 0
-        while dotsRunning do
-            label.Text = baseText .. string.rep(".", dots % 4)
-            dots += 1
-            task.wait(0.35)
-        end
-    end)
-end
 
 local function attemptVerify()
     if verifying then return end
     local typedKey = inputBox.Text
     if typedKey == "" then
-        setStatus("Enter a key first.", COL_RED)
+        setStatus("Please enter a key first.", COL_RED)
         shakeCard()
         return
     end
 
     verifying = true
+    submitBtn.Text = "Verifying..."
     setStatus("", COL_MUTED)
-    animateDots(submitBtn, "Verifying")
 
     local ok, response = pcall(function()
         return game:HttpGet(
@@ -434,19 +400,18 @@ local function attemptVerify()
         )
     end)
 
-    dotsRunning = false
     verifying = false
-    submitBtn.Text = "Submit"
+    submitBtn.Text = "Submit Key"
 
     if not ok then
-        setStatus("Couldn't reach the server. Try again.", COL_RED)
+        setStatus("Connection error. Try again.", COL_RED)
         shakeCard()
         return
     end
 
     local decodeOk, result = pcall(function() return HttpService:JSONDecode(response) end)
     if not decodeOk or type(result) ~= "table" then
-        setStatus("Bad response from server.", COL_RED)
+        setStatus("Invalid server response.", COL_RED)
         shakeCard()
         return
     end
@@ -457,17 +422,12 @@ local function attemptVerify()
         return
     end
 
-    -- Success: quick pulse + fade out, then hand off to the real script
-    setStatus("Key verified!", COL_GREEN)
-    submitBtn.Text = "Success"
+    setStatus("Success! Loading...", COL_GREEN)
     submitBtn.BackgroundColor3 = COL_GREEN
-    badgeGradient.Color = ColorSequence.new(COL_GREEN, COL_CYAN)
-    TweenService:Create(uiScale, TweenInfo.new(0.15, EASE_OUT), { Scale = 1.04 }):Play()
-    task.wait(0.15)
-    TweenService:Create(uiScale, TweenInfo.new(0.25, EASE_OUT), { Scale = 0.9 }):Play()
-    TweenService:Create(card, TweenInfo.new(0.25, EASE_OUT), { BackgroundTransparency = 1 }):Play()
-    TweenService:Create(cardStroke, TweenInfo.new(0.25, EASE_OUT), { Transparency = 1 }):Play()
-    TweenService:Create(overlay, TweenInfo.new(0.3, EASE_OUT), { BackgroundTransparency = 1 }):Play()
+    
+    TweenService:Create(uiScale, TweenInfo.new(0.2, EASE_OUT), { Scale = 0.9 }):Play()
+    TweenService:Create(card, TweenInfo.new(0.2, EASE_OUT), { BackgroundTransparency = 1 }):Play()
+    TweenService:Create(overlay, TweenInfo.new(0.25, EASE_OUT), { BackgroundTransparency = 1 }):Play()
     task.wait(0.25)
 
     screenGui:Destroy()
