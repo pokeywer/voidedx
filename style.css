@@ -373,3 +373,25 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
     .ks-tabs { flex-wrap: wrap; }
     .ks-tab { min-width: 45%; }
 }
+
+
+/* ============================================================
+   Share Your Ideas
+   ============================================================ */
+.btn-ideas { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #f59e0b, #f97316); box-shadow: 0 2px 10px rgba(249, 115, 22, 0.25); white-space: nowrap; }
+.btn-ideas:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(249, 115, 22, 0.35); }
+.btn-ideas i { color: #fff; }
+
+.ideas-card { max-width: 440px; }
+.ideas-card .auth-header-icon { color: #f59e0b; }
+
+.ideas-textarea { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: inherit; font-size: 13px; line-height: 1.5; padding: 10px; min-height: 110px; resize: vertical; white-space: pre-wrap; overflow-wrap: break-word; overflow-x: hidden; }
+.ideas-textarea:focus { border-color: #f59e0b; }
+.ideas-textarea.error { border-color: var(--red) !important; }
+
+.ideas-count { display: block; text-align: right; }
+
+@media (max-width: 480px) {
+    .btn-ideas { padding: 10px 12px; font-size: 11px; }
+    .ideas-card { width: calc(100% - 24px); padding: 20px 16px; }
+}

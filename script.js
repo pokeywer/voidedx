@@ -3,7 +3,7 @@ import {
     getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
-    getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where
+    getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 // --- YOUR FIREBASE CONFIG HERE ---
@@ -684,5 +684,89 @@ document.addEventListener('DOMContentLoaded', () => {
         copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
         showToast('Loadstring copied to clipboard.', 'success', 2000);
         setTimeout(() => copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> COPY LOADSTRING', 2000);
+    });
+});
+
+// ============================================================
+// Share Your Ideas — sends feature requests to Firestore
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const ideasBtn = document.getElementById('ideas-btn');
+    const ideasModal = document.getElementById('ideas-modal');
+    if (!ideasBtn || !ideasModal) return;
+
+    const ideasCloseX = document.getElementById('ideas-close-x');
+    const ideasCancelBtn = document.getElementById('ideas-cancel-btn');
+    const ideasSubmitBtn = document.getElementById('ideas-submit-btn');
+    const ideasSubmitLabel = document.getElementById('ideas-submit-label');
+    const ideasName = document.getElementById('ideas-name');
+    const ideasText = document.getElementById('ideas-text');
+    const ideasError = document.getElementById('ideas-error');
+    const ideasCount = document.getElementById('ideas-count');
+
+    const IDEA_MIN = 10;
+    const IDEA_MAX = 1000;
+
+    const openIdeasModal = () => {
+        ideasModal.classList.remove('hidden');
+        clearFieldError(ideasText, ideasError);
+        setTimeout(() => ideasText.focus(), 50);
+    };
+
+    const closeIdeasModal = () => {
+        ideasModal.classList.add('hidden');
+    };
+
+    ideasBtn.addEventListener('click', openIdeasModal);
+    ideasCloseX.addEventListener('click', closeIdeasModal);
+    ideasCancelBtn.addEventListener('click', closeIdeasModal);
+    ideasModal.addEventListener('click', (e) => {
+        if (e.target === ideasModal) closeIdeasModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !ideasModal.classList.contains('hidden')) closeIdeasModal();
+    });
+
+    ideasText.addEventListener('input', () => {
+        ideasCount.textContent = `${ideasText.value.length} / ${IDEA_MAX}`;
+        clearFieldError(ideasText, ideasError);
+    });
+
+    ideasSubmitBtn.addEventListener('click', async () => {
+        const idea = ideasText.value.trim();
+        const name = ideasName.value.trim();
+
+        if (idea.length < IDEA_MIN) {
+            setFieldError(ideasText, ideasError, `Give us a bit more detail — at least ${IDEA_MIN} characters.`);
+            shakeElement(ideasText);
+            return;
+        }
+        clearFieldError(ideasText, ideasError);
+
+        ideasSubmitBtn.disabled = true;
+        ideasSubmitLabel.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SENDING...';
+
+        try {
+            await addDoc(collection(db, 'feature_requests'), {
+                name: name || 'Anonymous',
+                idea: idea,
+                uid: currentUser ? currentUser.uid : null,
+                email: currentUser && currentUser.email ? currentUser.email : null,
+                page: 'index',
+                userAgent: navigator.userAgent,
+                createdAt: serverTimestamp()
+            });
+
+            showToast('Thanks! Your idea was sent to the VoidedX team.', 'success');
+            ideasText.value = '';
+            ideasName.value = '';
+            ideasCount.textContent = `0 / ${IDEA_MAX}`;
+            closeIdeasModal();
+        } catch (err) {
+            showToast('Couldn\'t send your idea: ' + friendlyAuthError(err), 'error', 6000);
+        } finally {
+            ideasSubmitBtn.disabled = false;
+            ideasSubmitLabel.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Idea';
+        }
     });
 });

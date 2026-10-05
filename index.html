@@ -24,6 +24,7 @@
                 </div>
             </div>
             <div class="nav-user">
+                <button id="ideas-btn" class="btn-accent btn-ideas" type="button"><i class="fa-solid fa-lightbulb"></i> Share Your Ideas</button>
                 <span id="user-display" class="user-badge"><i class="fa-solid fa-user"></i> Guest</span>
                 <button id="auth-btn" class="btn-accent"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
             </div>
@@ -168,6 +169,35 @@
                 <button id="confirm-cancel-btn" class="btn-ghost" type="button">Cancel</button>
                 <button id="confirm-ok-btn" class="btn-danger" type="button">Delete</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Share Your Ideas Modal -->
+    <div id="ideas-modal" class="modal-overlay hidden">
+        <div class="auth-card ideas-card">
+            <button id="ideas-close-x" class="modal-close-x" aria-label="Close" type="button"><i class="fa-solid fa-xmark"></i></button>
+            <div class="auth-header">
+                <i class="fa-solid fa-lightbulb auth-header-icon"></i>
+                <h3>Share Your Ideas</h3>
+                <p class="auth-subheading">Tell us what you'd like to see added to VoidedX next.</p>
+            </div>
+
+            <div class="panel-group">
+                <label class="panel-label" for="ideas-name">YOUR NAME (OPTIONAL)</label>
+                <input type="text" id="ideas-name" class="input-field" maxlength="40" placeholder="Anonymous" autocomplete="off">
+            </div>
+
+            <div class="panel-group">
+                <label class="panel-label" for="ideas-text">YOUR IDEA</label>
+                <textarea id="ideas-text" class="input-field ideas-textarea" maxlength="1000" rows="5" placeholder="e.g. A public script browser, dark/light themes, Discord bot integration..." spellcheck="true"></textarea>
+                <span class="field-error hidden" id="ideas-error"></span>
+                <span class="field-hint ideas-count" id="ideas-count">0 / 1000</span>
+            </div>
+
+            <button id="ideas-submit-btn" class="btn-primary" type="button">
+                <span id="ideas-submit-label"><i class="fa-solid fa-paper-plane"></i> Send Idea</span>
+            </button>
+            <button id="ideas-cancel-btn" class="btn-ghost" type="button">Cancel</button>
         </div>
     </div>
 
