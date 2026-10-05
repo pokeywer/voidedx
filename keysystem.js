@@ -632,15 +632,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     keysystemApplyBtn.addEventListener('click', async () => {
-        if (chkKeySystem.checked && currentKeys.length === 0) {
-            showToast('Add at least one key, or turn the key system off.', 'error');
+        if (chkKeySystem.checked && currentKeys.length === 0 && !chkPublicKey.checked) {
+            showToast('Add a private key or enable the Public Key, or turn the key system off.', 'error');
             return;
         }
         if (chkKeySystem.checked && currentKeys.some(k => !k.key.trim())) {
             showToast('One of your keys is empty — fill it in or delete that key.', 'error');
             return;
         }
-        if (chkPublicKey.checked && !isSafeUrl(publicAdGateInput.value.trim())) {
+        if (chkKeySystem.checked && chkPublicKey.checked && !isSafeUrl(publicAdGateInput.value.trim())) {
             showToast('The public key ad-gate link looks invalid — only http/https links are allowed.', 'error', 5000);
             return;
         }
