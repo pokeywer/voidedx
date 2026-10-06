@@ -66,9 +66,6 @@ export default async function handler(req, res) {
 
         if (!key) {
             return res.status(403).send(`
--- [VOIDEDX SECURITY ALERT]
--- Key protection is enabled for this script.
--- Invalid or missing key parameter.
 error("[VoidedX] Invalid Key Provided!", 2)
             `);
         }
@@ -191,8 +188,6 @@ local function getGuiParent()
     if ok2 and cg then return cg end
     return player:WaitForChild("PlayerGui")
 end
-
--- Theme, matching the VoidedX website
 local COL_BG = Color3.fromRGB(11, 13, 18)
 local COL_INPUT = Color3.fromRGB(22, 26, 36)
 local COL_BORDER = Color3.fromRGB(33, 38, 53)
@@ -211,13 +206,8 @@ screenGui.Name = "VoidedXKeySystem"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.DisplayOrder = 999
--- FIX: with the default Global behavior, the card (ZIndex 2) was rendering on top
--- of its own children (default ZIndex 1), hiding every control. Sibling behavior
--- makes children always draw above their parent background.
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = getGuiParent()
-
--- Dimmed backdrop, fades in
 local overlay = Instance.new("Frame")
 overlay.Size = UDim2.fromScale(1, 1)
 overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -226,8 +216,6 @@ overlay.BorderSizePixel = 0
 overlay.ZIndex = 1
 overlay.Parent = screenGui
 TweenService:Create(overlay, TweenInfo.new(0.35, EASE_OUT), { BackgroundTransparency = 0.45 }):Play()
-
--- Card
 local card = Instance.new("Frame")
 card.AnchorPoint = Vector2.new(0.5, 0.5)
 card.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -250,8 +238,6 @@ local cardStroke = Instance.new("UIStroke")
 cardStroke.Color = COL_BORDER
 cardStroke.Thickness = 1
 cardStroke.Parent = card
-
--- Entrance pop-in animation
 local uiScale = Instance.new("UIScale")
 uiScale.Scale = 0.82
 uiScale.Parent = card
@@ -260,8 +246,6 @@ cardStroke.Transparency = 1
 TweenService:Create(uiScale, TweenInfo.new(0.4, EASE_BACK), { Scale = 1 }):Play()
 TweenService:Create(card, TweenInfo.new(0.25, EASE_OUT), { BackgroundTransparency = 0 }):Play()
 TweenService:Create(cardStroke, TweenInfo.new(0.3, EASE_OUT), { Transparency = 0 }):Play()
-
--- Shimmering gradient accent bar across the top
 local accentBar = Instance.new("Frame")
 accentBar.Size = UDim2.new(1, 0, 0, 4)
 accentBar.BorderSizePixel = 0
@@ -301,8 +285,6 @@ layout.Padding = UDim.new(0, 12)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = content
-
--- Badge icon with gradient background
 local badge = Instance.new("Frame")
 badge.Size = UDim2.new(0, 48, 0, 48)
 badge.BackgroundColor3 = COL_CYAN
@@ -343,8 +325,6 @@ subtitle.Font = Enum.Font.Gotham
 subtitle.TextScaled = true
 subtitle.LayoutOrder = 3
 subtitle.Parent = content
-
--- Input field with focus glow
 local inputBox = Instance.new("TextBox")
 inputBox.Size = UDim2.new(1, 0, 0, 42)
 inputBox.BackgroundColor3 = COL_INPUT
@@ -375,8 +355,6 @@ end)
 inputBox.FocusLost:Connect(function()
     TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_BORDER, Thickness = 1 }):Play()
 end)
-
--- Submit button with gradient, hover and press feedback
 local submitBtn = Instance.new("TextButton")
 submitBtn.Size = UDim2.new(1, 0, 0, 42)
 submitBtn.BackgroundColor3 = COL_CYAN
@@ -522,8 +500,6 @@ local function attemptVerify()
         shakeCard()
         return
     end
-
-    -- Success: quick pulse + fade out, then hand off to the real script
     setStatus("Key verified!", COL_GREEN)
     submitBtn.Text = "Success"
     submitBtn.BackgroundColor3 = COL_GREEN
