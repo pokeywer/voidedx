@@ -1,13 +1,21 @@
 import { db, FieldValue } from './_admin.js';
 
-// Public endpoint behind key.html.
-// - GET               -> vault info + public key settings (no key values, no private keys)
-// - GET ?action=start  -> begins a timed hold before a key can be claimed
-// - GET ?action=claim  -> issues/returns the current public key, IF enough time has passed
-//
-// The wait is enforced using a timestamp stored server-side when the hold starts.
-// Nothing the browser sends is trusted for timing, so it can't be skipped by
-// editing the page's JavaScript.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const WAIT_MS = 15000;
 const PUBLIC_KEY_ID = 'k_public';
 
@@ -97,7 +105,8 @@ export default async function handler(req, res) {
             return json(res, result.status || 200, result);
         }
 
-        // Default: plain info for the Get-Key page.
+        
+
         const snap = await vaultRef.get();
         if (!snap.exists) return json(res, 404, { ok: false, message: "This vault ID doesn't exist or may have been deleted." });
         const v = snap.data();

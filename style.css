@@ -20,7 +20,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 body { background: var(--bg-base); color: var(--text-primary); min-height: 100vh; }
 
-/* ---------- Themed scrollbars (replaces the default light OS scrollbar) ---------- */
+
+
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
@@ -37,7 +38,8 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .flex-center { display: flex; flex: 1; min-height: 0; overflow-y: auto; align-items: center; justify-content: center; padding: 20px; }
 .brand-unit-link { text-decoration: none; color: inherit; cursor: pointer; }
 
-/* Promotional Banner */
+
+
 .promo-banner { background: linear-gradient(90deg, #1e1b4b, #312e81, #06b6d4); color: #fff; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; border-bottom: 1px solid var(--border-color); }
 .promo-icon { color: #38bdf8; font-size: 14px; }
 .btn-promo { background: #fff; color: #0f172a; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
@@ -106,7 +108,8 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 }
 .toggle-row:hover .switch { border-color: var(--cyan); }
 
-/* ---------- Key System Manager ---------- */
+
+
 .btn-keysystem-open {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     border-color: rgba(6, 182, 212, 0.35);
@@ -134,7 +137,8 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .keysystem-key-actions button { flex: 1; }
 .keysystem-status p { margin: 0; }
 
-/* ---------- Get-Key page (key.html) multi-key cards ---------- */
+
+
 .keys-page-stack { max-width: 560px; width: 100%; }
 .keys-page-wrap { display: flex; flex-direction: column; gap: 16px; width: 100%; }
 .keys-page-header { text-align: center; }
@@ -152,7 +156,8 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .manage-user-meta { font-size: 10.5px; color: var(--text-muted); }
 .manage-user-row .btn-danger { flex-shrink: 0; padding: 6px 10px; font-size: 11px; width: auto; }
 
-/* ---------- Get Key page ---------- */
+
+
 .key-generate-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .key-progress-track { width: 100%; height: 8px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; }
 .key-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--cyan), var(--accent)); transition: width 0.15s ease; }
@@ -160,7 +165,8 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .key-open-link { margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #expiry-tag { color: var(--cyan); }
 
-/* ---------- Vault.html visitor page ---------- */
+
+
 .vault-visitor-stack { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; max-width: 480px; }
 
 .btn-primary { background: linear-gradient(135deg, var(--cyan), var(--accent)); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-shadow: var(--shadow-sm); transition: transform 0.2s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth), opacity 0.2s ease; }
@@ -194,7 +200,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 @media (min-width: 769px) { .url-bar { flex-direction: row; } }
 .url-bar input { flex: 1; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--cyan); padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 12px; }
 
-/* Saved Vaults List Drawer */
+
+
 .vault-list-header {
     display: flex; align-items: center; justify-content: space-between; width: 100%;
     background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px;
@@ -228,7 +235,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .vault-item-title { font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vault-item-badge { font-size: 10px; color: var(--cyan); background: var(--bg-panel); padding: 3px 7px; border-radius: 20px; font-weight: 700; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 
-/* Auth Modal */
+
+
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: modal-fade-in 0.2s var(--ease-smooth); }
 .modal-overlay > * { animation: modal-card-in 0.25s var(--ease-smooth); }
 @keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -238,7 +246,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .auth-tab { flex: 1; background: none; border: none; color: var(--text-muted); font-weight: 700; padding: 8px; cursor: pointer; border-radius: 4px; }
 .auth-tab.active { background: var(--bg-panel); color: var(--cyan); }
 
-/* Secured Screen */
+
+
 .secured-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; text-align: center; max-width: 480px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
 .shield-badge { font-size: 48px; }
 .protection-tags { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--text-muted); }
@@ -253,13 +262,15 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .text-success { color: var(--green); }
 .text-red { color: var(--red); }
 
-/* ---------- Ghost button ---------- */
+
+
 .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%; transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease-smooth); }
 .btn-new-vault { border-style: dashed; color: var(--cyan); border-color: rgba(6, 182, 212, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-new-vault:hover { background: rgba(6, 182, 212, 0.08); border-style: solid; color: var(--text-primary); border-color: var(--cyan); }
 .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-muted); }
 
-/* ---------- Field validation ---------- */
+
+
 .input-field.error, .password-field.error .input-field { border-color: var(--red) !important; }
 .field-error { font-size: 11px; color: var(--red); display: flex; align-items: center; gap: 6px; }
 .field-error::before { content: "\f06a"; font-family: "Font Awesome 6 Free"; font-weight: 900; }
@@ -274,13 +285,15 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 }
 .shake-error { animation: shake 0.4s ease; border-color: var(--red) !important; }
 
-/* ---------- Password field ---------- */
+
+
 .password-field { position: relative; display: flex; }
 .password-field .input-field { padding-right: 40px; }
 .password-toggle { position: absolute; right: 0; top: 0; bottom: 0; width: 40px; background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .password-toggle:hover { color: var(--cyan); }
 
-/* ---------- Auth modal upgrades ---------- */
+
+
 .auth-card { position: relative; }
 .modal-close-x { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; width: 28px; height: 28px; border-radius: 6px; }
 .modal-close-x:hover { color: var(--text-primary); background: var(--bg-panel); }
@@ -299,7 +312,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .btn-primary:disabled, .btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-primary .fa-spin { margin-right: 2px; }
 
-/* ---------- Confirm modal ---------- */
+
+
 .confirm-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px 24px; max-width: 380px; width: 90%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .confirm-icon { font-size: 30px; color: var(--red); }
 .confirm-card h4 { font-size: 15px; font-weight: 800; }
@@ -307,7 +321,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .confirm-actions { display: flex; gap: 10px; width: 100%; margin-top: 8px; }
 .confirm-actions button { flex: 1; width: auto; }
 
-/* ---------- Toasts ---------- */
+
+
 .toast-container { position: fixed; top: 16px; right: 16px; left: 16px; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
 @media (min-width: 769px) { .toast-container { left: auto; width: 340px; } }
 .toast { pointer-events: auto; width: 100%; max-width: 360px; background: var(--bg-surface); border: 1px solid var(--border-color); border-left: 3px solid var(--cyan); border-radius: 8px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0,0,0,0.4); animation: toast-in 0.25s ease; }
@@ -325,10 +340,12 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes toast-out { to { opacity: 0; transform: translateX(12px); } }
 
-/* ---------- Button loading spinner base ---------- */
+
+
 .btn-primary, .btn-ghost, .btn-danger { transition: opacity 0.15s; }
 
-/* ---------- Mobile fixes ---------- */
+
+
 @media (max-width: 768px) {
     .editor-stage { min-height: 420px; }
 }
@@ -342,7 +359,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
     .confirm-actions { flex-direction: column; }
     .promo-banner { flex-direction: column; text-align: center; }
 }
-/* ---------- Key System Manager (standalone page) ---------- */
+
+
 .ks-back-link { width: auto; padding: 8px 14px; }
 .ks-page-wrap { flex: 1; min-height: 0; overflow-y: auto; max-width: 720px; width: 100%; margin: 0 auto; padding: 24px 16px 60px; display: flex; flex-direction: column; gap: 18px; }
 .ks-page-header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -375,9 +393,8 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 }
 
 
-/* ============================================================
-   Share Your Ideas
-   ============================================================ */
+
+
 .btn-ideas { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #f59e0b, #f97316); box-shadow: 0 2px 10px rgba(249, 115, 22, 0.25); white-space: nowrap; }
 .btn-ideas:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(249, 115, 22, 0.35); }
 .btn-ideas i { color: #fff; }

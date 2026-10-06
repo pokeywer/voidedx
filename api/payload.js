@@ -2,7 +2,8 @@ import { db, FieldValue } from './_admin.js';
 
 const SESSION_TTL_MS = 60 * 1000;
 const MAX_USES = 3;
-const MOD = 16777216; // 2^24; exact integer arithmetic in JS and Lua.
+const MOD = 16777216; 
+
 const MULT = 25173;
 const INC = 13849;
 

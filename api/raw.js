@@ -21,7 +21,8 @@ export default async function handler(req, res) {
         return res.status(400).send('-- Error: Missing Vault ID');
     }
 
-    // Real browser visitors get sent to the SECURED landing page instead of raw code.
+    
+
     if (!isExecutorRequest(req)) {
         const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
         return res.redirect(302, `/vault.html?id=${encodeURIComponent(id)}${keyParam}`);
@@ -36,8 +37,10 @@ export default async function handler(req, res) {
 
         const vaultData = docSnap.data();
 
-        // GUI Mode: no key in the URL at all — send an in-game popup instead that
-        // asks the player to type their key, then verifies it via /api/verify.
+        
+
+        
+
         if (vaultData.requireKey && vaultData.guiMode) {
             res.setHeader('Content-Type', 'text/plain');
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -47,15 +50,20 @@ export default async function handler(req, res) {
         res.setHeader('Content-Type', 'text/plain');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
-        // NEVER return the vault source from this endpoint. The endpoint only returns
-        // a bootstrap loader. The actual source is fetched later through a short-lived
-        // authenticated session and is transported as an obfuscated payload.
+        
+
+        
+
+        
+
         if (!vaultData.requireKey) {
             return res.status(200).send(buildKeyLoader(id, '', getOrigin(req)));
         }
 
-        // Key-in-URL mode. The key is used only to obtain a short-lived session; it is
-        // never included in the protected payload response.
+        
+
+        
+
         if (!key) {
             return res.status(403).send(`
 -- [VOIDEDX SECURITY ALERT]

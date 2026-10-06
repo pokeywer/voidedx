@@ -18,8 +18,10 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Resolves with the current Firebase user (signing in anonymously if needed),
-// so every visitor has a real UID to compare against the vault's owner.
+
+
+
+
 function waitForUser() {
     return new Promise((resolve, reject) => {
         const unsub = onAuthStateChanged(auth, async (user) => {
@@ -137,7 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // ---------------- Tabs ----------------
+    
+
     document.querySelectorAll('.ks-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.ks-tab').forEach(t => t.classList.remove('active'));
@@ -147,7 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ---------------- Key list state ----------------
+    
+
     let currentKeys = [];
     let currentOwnerLegacy = false;
     let currentBannedUsers = [];
@@ -362,7 +366,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderKeysList();
     });
 
-    // ---------------- Public Key section ----------------
+    
+
     chkPublicKey.addEventListener('change', () => {
         publicKeyFields.classList.toggle('hidden', !chkPublicKey.checked);
     });
@@ -427,7 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ---------------- Banned users ----------------
+    
+
     function renderBannedUsersList() {
         bannedCountBadge.textContent = String(currentBannedUsers.length);
         bannedCountBadge.classList.toggle('hidden', currentBannedUsers.length === 0);
@@ -511,10 +517,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => keysystemCopyKeyLinkBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy', 2000);
     });
 
-    // ---------------- Load / migrate vault data ----------------
+    
+
     function keysFromVaultData(data) {
-        // Only private/whitelist keys live in the manual list now — the public
-        // key (id "k_public") is auto-generated and managed in its own section.
+        
+
+        
+
         if (Array.isArray(data.keys) && data.keys.length > 0) {
             return data.keys
                 .filter(k => k.id !== 'k_public' && k.visibility !== 'public')
@@ -558,8 +567,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const data = snap.data();
 
-            // Ownership gate: only the vault's owner (or anyone, for old pre-UID
-            // "guest" vaults) may see or change its keys.
+            
+
+            
+
             const user = await waitForUser();
             if (data.uid !== user.uid && data.uid !== 'guest') {
                 ksLoading.classList.add('hidden');
@@ -678,8 +689,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const existing = existingSnap.exists() ? existingSnap.data() : {};
             const boundIp = ipLock ? (existing.boundIp || null) : null;
 
-            // Preserve the live auto-generated public key entry as-is — it's
-            // managed by Regenerate/Terminate, not rebuilt here.
+            
+
+            
+
             const existingPublicEntry = (Array.isArray(existing.keys) ? existing.keys : []).find(k => k.id === 'k_public');
             const keysPayload = existingPublicEntry ? [...privateKeysPayload, existingPublicEntry] : privateKeysPayload;
             const primaryKey = privateKeysPayload[0] || null;
