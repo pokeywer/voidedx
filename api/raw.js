@@ -47,13 +47,15 @@ export default async function handler(req, res) {
         res.setHeader('Content-Type', 'text/plain');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
+        // NEVER return the vault source from this endpoint. The endpoint only returns
+        // a bootstrap loader. The actual source is fetched later through a short-lived
+        // authenticated session and is transported as an obfuscated payload.
         if (!vaultData.requireKey) {
-            return res.status(200).send(vaultData.code);
+            return res.status(200).send(buildKeyLoader(id, '', getOrigin(req)));
         }
 
-        // Key-in-URL mode: fast-fail on an obviously missing key, otherwise hand off
-        // to a loader that identifies the player and asks /api/verify to do the real
-        // checking (key match, expiry, termination, bans, IP lock, player limits).
+        // Key-in-URL mode. The key is used only to obtain a short-lived session; it is
+        // never included in the protected payload response.
         if (!key) {
             return res.status(403).send(`
 -- [VOIDEDX SECURITY ALERT]
@@ -71,37 +73,88 @@ error("[VoidedX] Invalid Key Provided!", 2)
 
 function buildKeyLoader(id, key, origin) {
     const verifyBase = `${origin}/api/verify`;
+    const payloadBase = `${origin}/api/payload`;
     return `
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
-local ok, response = pcall(function()
-    return game:HttpGet(
-        "${verifyBase}?id=${encodeURIComponent(id)}" ..
-        "&key=" .. HttpService:UrlEncode(${luaString(key)}) ..
-        "&userId=" .. tostring(player.UserId) ..
-        "&username=" .. HttpService:UrlEncode(player.Name)
-    )
-end)
-
-if not ok then
-    return error("[VoidedX] Could not reach the verification server. Try again.", 0)
+local function b64decode(data)
+    local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    local lookup = {}
+    for i = 1, #alphabet do lookup[alphabet:sub(i, i)] = i - 1 end
+    local clean = data:gsub("[^%w%+%/%=]", "")
+    local out = {}
+    local buffer, bits = 0, 0
+    for i = 1, #clean do
+        local c = clean:sub(i, i)
+        if c ~= "=" then
+            local v = lookup[c]
+            if v == nil then error("[VoidedX] Invalid protected payload.", 0) end
+            buffer = buffer * 64 + v
+            bits = bits + 6
+            if bits >= 8 then
+                bits = bits - 8
+                local divisor = 2 ^ bits
+                local byte = math.floor(buffer / divisor) % 256
+                out[#out + 1] = string.char(byte)
+                buffer = buffer % divisor
+            end
+        end
+    end
+    return table.concat(out)
 end
 
-local decodeOk, result = pcall(function() return HttpService:JSONDecode(response) end)
-if not decodeOk or type(result) ~= "table" then
-    return error("[VoidedX] Verification server returned a bad response.", 0)
+local function unprotect(payload, session)
+    local encrypted = b64decode(payload)
+    local MOD, MULT, INC = 16777216, 25173, 13849
+    local h = 2166131
+    for i = 1, #session do
+        local c = string.byte(session, i)
+        h = ((bit32.bxor(h, c) * 16777619) % MOD)
+    end
+    local out = table.create(#encrypted)
+    for i = 1, #encrypted do
+        h = (h * MULT + INC) % MOD
+        local b = string.byte(encrypted, i)
+        out[i] = string.char(bit32.bxor(b, h % 256))
+    end
+    return table.concat(out)
 end
 
-if not result.ok then
-    return error("[VoidedX] " .. tostring(result.message or "Access denied."), 0)
+local function getPayload(session)
+    local ok, response = pcall(function()
+        return game:HttpGet("${payloadBase}?session=" .. HttpService:UrlEncode(session))
+    end)
+    if not ok then error("[VoidedX] Could not download the protected payload. Try again.", 0) end
+    local decodeOk, result = pcall(function() return HttpService:JSONDecode(response) end)
+    if not decodeOk or type(result) ~= "table" or not result.ok or type(result.payload) ~= "string" then
+        error("[VoidedX] Protected payload request was rejected.", 0)
+    end
+    return result.payload
 end
 
-loadstring(result.code)()
+local function run()
+    local key = ${luaString(key)}
+    local url = "${verifyBase}?id=${encodeURIComponent(id)}"
+    if key ~= "" then url = url .. "&key=" .. HttpService:UrlEncode(key) end
+    url = url .. "&userId=" .. tostring(player.UserId) .. "&username=" .. HttpService:UrlEncode(player.Name)
+
+    local ok, response = pcall(function() return game:HttpGet(url) end)
+    if not ok then error("[VoidedX] Could not reach the verification server. Try again.", 0) end
+    local decodeOk, result = pcall(function() return HttpService:JSONDecode(response) end)
+    if not decodeOk or type(result) ~= "table" then error("[VoidedX] Verification server returned a bad response.", 0) end
+    if not result.ok or type(result.session) ~= "string" then error("[VoidedX] " .. tostring(result.message or "Access denied."), 0) end
+
+    local source = unprotect(getPayload(result.session), result.session)
+    local fn, compileErr = loadstring(source)
+    if not fn then error("[VoidedX] Protected script failed to compile: " .. tostring(compileErr), 0) end
+    return fn()
+end
+
+return run()
 `.trim();
 }
-
 function luaString(str) {
     const escaped = String(str).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return `"${escaped}"`;
@@ -115,6 +168,7 @@ function getOrigin(req) {
 
 function buildGuiLoader(id, origin) {
     const verifyBase = `${origin}/api/verify`;
+    const payloadBase = `${origin}/api/payload`;
     const keyPageUrl = `${origin}/key.html?id=${id}`;
     return `
 local Players = game:GetService("Players")
@@ -474,8 +528,67 @@ local function attemptVerify()
     TweenService:Create(overlay, TweenInfo.new(0.3, EASE_OUT), { BackgroundTransparency = 1 }):Play()
     task.wait(0.25)
 
+    local payloadOk, payloadResponse = pcall(function()
+        return game:HttpGet("${payloadBase}?session=" .. HttpService:UrlEncode(result.session))
+    end)
+    if not payloadOk then
+        setStatus("Protected payload could not be downloaded.", COL_RED)
+        shakeCard()
+        return
+    end
+    local payloadDecodeOk, payloadResult = pcall(function() return HttpService:JSONDecode(payloadResponse) end)
+    if not payloadDecodeOk or type(payloadResult) ~= "table" or not payloadResult.ok or type(payloadResult.payload) ~= "string" then
+        setStatus("Protected payload was rejected.", COL_RED)
+        shakeCard()
+        return
+    end
+
+    local function b64decode(data)
+        local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        local lookup = {}
+        for i = 1, #alphabet do lookup[alphabet:sub(i, i)] = i - 1 end
+        local clean = data:gsub("[^%w%+%/%=]", "")
+        local out, buffer, bits = {}, 0, 0
+        for i = 1, #clean do
+            local c = clean:sub(i, i)
+            if c ~= "=" then
+                local v = lookup[c]
+                if v == nil then error("[VoidedX] Invalid protected payload.", 0) end
+                buffer = buffer * 64 + v
+                bits = bits + 6
+                if bits >= 8 then
+                    bits = bits - 8
+                    local divisor = 2 ^ bits
+                    out[#out + 1] = string.char(math.floor(buffer / divisor) % 256)
+                    buffer = buffer % divisor
+                end
+            end
+        end
+        return table.concat(out)
+    end
+
+    local encrypted = b64decode(payloadResult.payload)
+    local MOD, MULT, INC = 16777216, 25173, 13849
+    local h = 2166131
+    for i = 1, #result.session do
+        h = ((bit32.bxor(h, string.byte(result.session, i)) * 16777619) % MOD)
+    end
+    local bytes = table.create(#encrypted)
+    for i = 1, #encrypted do
+        h = (h * MULT + INC) % MOD
+        bytes[i] = string.char(bit32.bxor(string.byte(encrypted, i), h % 256))
+    end
+    local source = table.concat(bytes)
+    local fn, compileErr = loadstring(source)
+    if not fn then
+        setStatus("Protected script failed to compile.", COL_RED)
+        warn("[VoidedX] " .. tostring(compileErr))
+        shakeCard()
+        return
+    end
+
     screenGui:Destroy()
-    loadstring(result.code)()
+    fn()
 end
 
 submitBtn.MouseButton1Click:Connect(attemptVerify)
