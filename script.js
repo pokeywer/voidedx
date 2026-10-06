@@ -6,8 +6,7 @@ import {
     getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
-
-
+// --- YOUR FIREBASE CONFIG HERE ---
 const firebaseConfig = {
     apiKey: "AIzaSyBdAR4ARjHccTlxrmP9tzdYGJxo4MvETXw",
     authDomain: "voidedx-fe79f.firebaseapp.com",
@@ -24,12 +23,9 @@ const db = getFirestore(app);
 let currentUser = null;
 let isSignUpMode = false;
 
-
-
-
-
-
-
+// ============================================================
+// Small reusable UI helpers (toasts, field errors, confirm modal)
+// ============================================================
 
 function showToast(message, type = 'info', duration = 4000) {
     const container = document.getElementById('toast-container');
@@ -74,8 +70,7 @@ function clearFieldError(inputEl, errorEl) {
 function shakeElement(el) {
     if (!el) return;
     el.classList.remove('shake-error');
-    
-
+    // force reflow so the animation can restart if triggered repeatedly
     void el.offsetWidth;
     el.classList.add('shake-error');
     setTimeout(() => el.classList.remove('shake-error'), 450);
@@ -85,13 +80,10 @@ function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-
-
-
-
+// Only allow http(s) links for ad-gate URLs — blocks javascript: URI injection
+// and similar schemes from ever becoming a clickable href on the Get-Key page.
 function isSafeUrl(url) {
-    if (!url) return true; 
-
+    if (!url) return true; // empty is fine — it just means no ad-gate step
     try {
         const parsed = new URL(url, window.location.origin);
         return parsed.protocol === 'http:' || parsed.protocol === 'https:';
@@ -100,8 +92,7 @@ function isSafeUrl(url) {
     }
 }
 
-
-
+// Translates raw Firebase Auth error codes into human, actionable copy.
 function friendlyAuthError(err) {
     const code = err && err.code ? err.code : '';
     switch (code) {
@@ -126,8 +117,7 @@ function friendlyAuthError(err) {
     }
 }
 
-
-
+// Simple promise-based replacement for window.confirm, styled to match the app.
 function customConfirm({ title, message, confirmLabel = 'Delete' }) {
     return new Promise(resolve => {
         const modal = document.getElementById('confirm-modal');
@@ -158,12 +148,9 @@ function customConfirm({ title, message, confirmLabel = 'Delete' }) {
     });
 }
 
-
-
-
-
-
-
+// ============================================================
+// Main app
+// ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     const lockBtn = document.getElementById('lock-vault-btn');
@@ -200,8 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    
-
+    // Vault list dropdown (starts expanded)
     vaultListPanel.classList.add('expanded');
     vaultListToggle.classList.add('expanded');
     vaultListToggle.addEventListener('click', () => {
@@ -209,8 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         vaultListToggle.classList.toggle('expanded', isExpanded);
     });
 
-    
-
+    // Auth Elements
     const authBtn = document.getElementById('auth-btn');
     const userDisplay = document.getElementById('user-display');
     const authModal = document.getElementById('auth-modal');
@@ -230,8 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authCloseBtn = document.getElementById('auth-close-btn');
     const authCloseX = document.getElementById('auth-close-x');
 
-    
-
+    // ---------------- Auth modal open/close ----------------
 
     function resetAuthForm() {
         authEmail.value = '';
@@ -363,10 +347,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser = user;
         const newUid = user ? user.uid : null;
         if (newUid !== lastUid) {
-            
-
-            
-
+            // Identity changed (login / logout / new guest): clear the editor and the
+            // vault list so nothing from the previous account stays on screen.
             resetEditor();
             vaultListContainer.innerHTML = '<div class="info-box"><p><i class="fa-solid fa-spinner fa-spin"></i> Loading vaults...</p></div>';
             updateVaultCount(0);
@@ -377,18 +359,14 @@ document.addEventListener('DOMContentLoaded', () => {
             authBtn.innerHTML = `<i class="fa-solid fa-right-from-bracket"></i> Logout`;
             loadUserVaults();
         } else if (user && user.isAnonymous) {
-            
-
-            
-
+            // Real Firebase Auth session, just without an email — this UID is what
+            // proves ownership of vaults created while "not logged in".
             userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
             loadUserVaults();
         } else {
-            
-
-            
-
+            // No session at all yet — silently start one so this browser gets a
+            // stable, unique UID instead of everyone sharing the literal "guest".
             signInAnonymously(auth).catch(() => {
                 userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
                 authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
@@ -398,8 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    
-
+    // ---------------- Vault list ----------------
 
     async function loadUserVaults() {
         if (!currentUser) return;
@@ -487,11 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(`Loaded "${escapeHtml(data.title || 'Untitled Vault')}" into the editor.`, 'info', 2500);
     }
 
-    
+    // ---------------- Lock / Save Vault ----------------
 
-
-    
-
+    // ---------------- Line numbers gutter ----------------
 
     function updateLineNumbers() {
         const lineCount = sourceCode.value.split('\n').length;
@@ -542,10 +517,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (docSnap.exists()) {
                     const existing = docSnap.data();
                     currentExecutions = existing.executions || 0;
-                    
-
-                    
-
+                    // Key system settings are managed on the separate Key System Manager
+                    // page — saving the script here just carries them forward untouched.
                     existingKeyFields = {
                         requireKey: !!existing.requireKey,
                         guiMode: !!existing.guiMode,
@@ -625,8 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    
-
+    // ---------------- Delete Vault ----------------
 
     function resetEditor() {
         activeVaultId.value = '';
@@ -715,12 +687,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-
-
-
-
-
-
+// ============================================================
+// Share Your Ideas — sends feature requests to Firestore
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     const ideasBtn = document.getElementById('ideas-btn');
     const ideasModal = document.getElementById('ideas-modal');

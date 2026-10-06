@@ -1,9 +1,7 @@
 import { db } from './_admin.js';
 
-
-
-
-
+// Public data for vault.html. Tells the page whether a key is needed / valid,
+// but never returns the script code or any key values.
 function json(res, status, body) {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');
