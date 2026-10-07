@@ -11,6 +11,12 @@
 </head>
 <body>
     <div class="shell">
+        <div id="site-announcement" class="site-announcement hidden" role="status" aria-live="polite">
+            <i id="site-announcement-icon" class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <div class="site-announcement-copy"><strong id="site-announcement-title"></strong><span id="site-announcement-message"></span></div>
+            <a id="site-announcement-link" class="site-announcement-link hidden" target="_blank" rel="noopener noreferrer"></a>
+            <button id="site-announcement-dismiss" class="site-announcement-dismiss" type="button" aria-label="Dismiss announcement"><i class="fa-solid fa-xmark"></i></button>
+        </div>
         <div class="promo-banner">
             <i class="fa-solid fa-rocket promo-icon"></i>
             <span><strong>VoidedX Script Vault</strong> — Fast, Free & Secure Roblox Script Hosting & Key System! Share your scripts safely.</span>
@@ -26,6 +32,7 @@
             </div>
             <div class="nav-user">
                 <a href="/leaderboard" class="btn-ghost leaderboard-nav-link"><i class="fa-solid fa-trophy"></i> Leaderboard</a>
+                <a href="/admin" class="btn-ghost leaderboard-nav-link"><i class="fa-solid fa-shield-halved"></i> Admin</a>
                 <button id="ideas-btn" class="btn-accent btn-ideas" type="button"><i class="fa-solid fa-lightbulb"></i> Share Your Ideas</button>
                 <span id="user-display" class="user-badge"><i class="fa-solid fa-user"></i> Guest</span>
                 <button id="auth-btn" class="btn-accent"><i class="fa-solid fa-right-to-bracket"></i> Login</button>

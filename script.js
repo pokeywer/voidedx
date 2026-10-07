@@ -117,6 +117,52 @@ function friendlyAuthError(err) {
     }
 }
 
+async function loadSiteAnnouncement() {
+    const banner = document.getElementById('site-announcement');
+    if (!banner) return;
+    try {
+        const response = await fetch('/api/announcements', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        const announcement = data && data.announcement;
+        if (!announcement || !announcement.message) return;
+
+        const dismissalKey = `voidedx-announcement-dismissed-${announcement.updatedAt || announcement.message}`;
+        try { if (localStorage.getItem(dismissalKey) === '1') return; } catch {}
+
+        const title = document.getElementById('site-announcement-title');
+        const message = document.getElementById('site-announcement-message');
+        const link = document.getElementById('site-announcement-link');
+        const dismiss = document.getElementById('site-announcement-dismiss');
+        title.textContent = announcement.title || 'VoidedX update';
+        message.textContent = announcement.message;
+
+        banner.classList.remove('info', 'success', 'warning');
+        banner.classList.add(['info', 'success', 'warning'].includes(announcement.kind) ? announcement.kind : 'info');
+        const icon = document.getElementById('site-announcement-icon');
+        icon.className = announcement.kind === 'success'
+            ? 'fa-solid fa-circle-check'
+            : announcement.kind === 'warning' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-info';
+
+        link.classList.add('hidden');
+        if (announcement.link) {
+            const parsed = new URL(announcement.link, window.location.origin);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                link.href = parsed.href;
+                link.textContent = announcement.linkLabel || 'Learn more';
+                link.classList.remove('hidden');
+            }
+        }
+        dismiss.onclick = () => {
+            banner.classList.add('hidden');
+            try { localStorage.setItem(dismissalKey, '1'); } catch {}
+        };
+        banner.classList.remove('hidden');
+    } catch {
+        // Public pages remain usable if announcements are temporarily unavailable.
+    }
+}
+
 // Start the backup download directly from the Save button click. Browsers can
 // block downloads triggered only after the later Firebase requests complete.
 function downloadLocalVaultBackup(vaultId, title, code) {
@@ -192,6 +238,7 @@ function customConfirm({ title, message, confirmLabel = 'Delete' }) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    loadSiteAnnouncement();
     const lockBtn = document.getElementById('lock-vault-btn');
     const newVaultBtn = document.getElementById('new-vault-btn');
     const deleteBtn = document.getElementById('delete-vault-btn');
