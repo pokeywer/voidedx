@@ -246,16 +246,16 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .check-code-btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #34405a; border-radius: 6px; background: #151b29; color: #d9e2f2; padding: 6px 10px; font-size: 10px; font-weight: 750; cursor: pointer; transition: border-color .15s ease, background .15s ease; white-space: nowrap; }
 .check-code-btn:hover { border-color: #82aaff; background: #1b263b; }
 .code-editor-surface { flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; background: var(--bg-base); }
-.code-editor-surface textarea#source-code { position: absolute; inset: 0; z-index: 2; display: block; box-sizing: border-box; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 16px; overflow: auto; background: transparent; color: transparent; -webkit-text-fill-color: transparent; caret-color: #edf3ff; font: 13px/1.6 var(--font-mono); letter-spacing: normal; tab-size: 4; white-space: pre; overflow-wrap: normal; }
+.code-editor-surface textarea#source-code { position: absolute; inset: 0; z-index: 2; display: block; box-sizing: border-box; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 16px; overflow: auto; background: transparent; color: transparent; -webkit-text-fill-color: transparent; caret-color: #f8fafc; font: 400 13px/1.6 var(--font-mono); font-kerning: none; font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0, "calt" 0; letter-spacing: 0; tab-size: 4; white-space: pre; overflow-wrap: normal; word-break: normal; }
 .code-editor-surface textarea#source-code::selection { background: rgba(130,170,255,.28); -webkit-text-fill-color: transparent; }
 .code-editor-surface textarea#source-code::placeholder { color: #65728a; -webkit-text-fill-color: #65728a; opacity: .72; }
-.syntax-highlight { position: absolute; inset: 0; z-index: 1; box-sizing: border-box; margin: 0; padding: 16px; overflow: hidden; pointer-events: none; color: #d6deeb; font: 13px/1.6 var(--font-mono); letter-spacing: normal; tab-size: 4; white-space: pre; overflow-wrap: normal; }
+.syntax-highlight { position: absolute; inset: 0; z-index: 1; box-sizing: border-box; margin: 0; padding: 16px; overflow: hidden; pointer-events: none; color: #d6deeb; font: 400 13px/1.6 var(--font-mono); font-kerning: none; font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0, "calt" 0; letter-spacing: 0; tab-size: 4; white-space: pre; overflow-wrap: normal; word-break: normal; }
 .syntax-keyword { color: #c792ea; }
 .syntax-builtin { color: #82aaff; }
 .syntax-global { color: #80cbc4; }
 .syntax-string { color: #c3e88d; }
 .syntax-number { color: #f78c6c; }
-.syntax-comment { color: #697386; font-style: italic; }
+.syntax-comment { color: #8792a5; }
 .syntax-operator { color: #89ddff; }
 .syntax-function { color: #ffcb6b; }
 .syntax-property { color: #f07178; }
