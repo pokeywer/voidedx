@@ -1,6 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously
+    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously,
+    GoogleAuthProvider, signInWithPopup, linkWithPopup, signInWithCredential
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
     getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where, serverTimestamp
@@ -112,6 +113,16 @@ function friendlyAuthError(err) {
             return "Network error — check your connection and try again.";
         case 'auth/user-disabled':
             return 'This account has been disabled. Contact support if that seems wrong.';
+        case 'auth/operation-not-allowed':
+            return 'Google sign-in is not enabled for this Firebase project yet. Turn on Google in Firebase Authentication settings.';
+        case 'auth/unauthorized-domain':
+            return 'This website domain is not approved for Google sign-in. Add it to Firebase Authentication’s authorized domains.';
+        case 'auth/popup-blocked':
+            return 'Your browser blocked the Google sign-in window. Allow popups for this site and try again.';
+        case 'auth/popup-closed-by-user':
+            return 'Google sign-in was closed before it finished.';
+        case 'auth/account-exists-with-different-credential':
+            return 'This Google email already uses a different sign-in method. Log in with that method first.';
         default:
             return (err && err.message ? err.message.replace(/^Firebase:\s*/i, '') : 'Something went wrong. Please try again.');
     }
@@ -338,6 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const authBanner = document.getElementById('auth-banner');
     const tabLogin = document.getElementById('tab-login');
     const tabSignup = document.getElementById('tab-signup');
+    const googleAuthBtn = document.getElementById('google-auth-btn');
+    const googleAuthLabel = document.getElementById('google-auth-label');
     const authEmail = document.getElementById('auth-email');
     const emailError = document.getElementById('email-error');
     const authPassword = document.getElementById('auth-password');
@@ -365,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function openAuthModal() {
         resetAuthForm();
         authModal.classList.remove('hidden');
-        authEmail.focus();
+        if (!window.matchMedia('(max-width: 768px)').matches) authEmail.focus();
     }
 
     function closeAuthModal() {
@@ -424,11 +437,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setAuthLoading(isLoading) {
         authSubmitBtn.disabled = isLoading;
+        googleAuthBtn.disabled = isLoading;
         authCloseBtn.disabled = isLoading;
         authSubmitLabel.innerHTML = isLoading
             ? `<i class="fa-solid fa-spinner fa-spin"></i> ${isSignUpMode ? 'Creating account…' : 'Logging in…'}`
             : (isSignUpMode ? 'Sign Up' : 'Log In');
+        googleAuthLabel.textContent = isLoading ? 'Opening Google…' : 'Continue with Google';
     }
+
+    const googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+    async function finishGoogleLinkConflict(error) {
+        if (!error || error.code !== 'auth/credential-already-in-use') return false;
+        const credential = GoogleAuthProvider.credentialFromError(error);
+        if (!credential) return false;
+        await signInWithCredential(auth, credential);
+        closeAuthModal();
+        showToast('Signed in with Google. If you have guest vaults from before, recover them with their vault ID.', 'success', 7000);
+        return true;
+    }
+
+    function showGoogleAuthError(error) {
+        authBanner.textContent = friendlyAuthError(error);
+        authBanner.className = 'auth-banner error';
+    }
+
+    googleAuthBtn.addEventListener('click', async () => {
+        authBanner.classList.add('hidden');
+        setAuthLoading(true);
+        try {
+            const current = auth.currentUser;
+            // Popup sign-in also works on this Vercel-hosted site without requiring
+            // the extra same-domain proxy setup that redirect sign-in needs.
+            if (current && current.isAnonymous) await linkWithPopup(current, googleProvider);
+            else await signInWithPopup(auth, googleProvider);
+            closeAuthModal();
+            showToast('You’re signed in with Google.', 'success');
+        } catch (error) {
+            try {
+                if (await finishGoogleLinkConflict(error)) return;
+            } catch (signInError) {
+                error = signInError;
+            }
+            showGoogleAuthError(error);
+        } finally {
+            setAuthLoading(false);
+        }
+    });
 
     authSubmitBtn.addEventListener('click', async () => {
         const email = authEmail.value.trim();
