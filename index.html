@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoidedX // Script Vault</title>
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="stylesheet" href="style.css">
@@ -49,6 +49,9 @@
                     <span class="field-error hidden" id="title-error"></span>
                 </div>
 
+                <details class="mobile-vault-settings" id="mobile-vault-settings" open>
+                    <summary><span><i class="fa-solid fa-sliders"></i> Vault settings</span><i class="fa-solid fa-chevron-down mobile-settings-chevron"></i></summary>
+                    <div class="mobile-vault-settings-content">
                 <div class="panel-group">
                     <label class="panel-label">VAULT OVERVIEW</label>
                     <div class="vault-overview" aria-label="Your vault statistics">
@@ -113,6 +116,8 @@
                         <span>Use the Key System Manager to gate access. Anyone who can run a script can inspect its delivered code, so never include passwords or private API keys.</span>
                     </div>
                 </div>
+                    </div>
+                </details>
 
                 <div class="sidebar-save-dock">
                     <input type="hidden" id="active-vault-id">
