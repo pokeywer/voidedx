@@ -1,4 +1,5 @@
 import { db } from './_admin.js';
+import { recordExecution } from './_executionStats.js';
 
 function isExecutorRequest(req) {
     const ua = (req.headers['user-agent'] || '').toLowerCase();
@@ -48,6 +49,9 @@ export default async function handler(req, res) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
         if (!vaultData.requireKey) {
+            if (typeof vaultData.code === 'string' && vaultData.code.trim()) {
+                try { await recordExecution(db.collection('vaults').doc(String(id)), id, vaultData.title); } catch (e) {}
+            }
             return res.status(200).send(vaultData.code);
         }
 
