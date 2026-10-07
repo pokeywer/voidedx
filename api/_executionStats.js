@@ -11,7 +11,8 @@ export async function recordExecution(vaultRef, vaultId, rawTitle, rawPlayerId =
         : 'Untitled Vault';
 
     const batch = db.batch();
-    batch.update(vaultRef, { executions: FieldValue.increment(1) });
+    // Any successful run exempts the vault from the unused-script cleanup timer.
+    batch.update(vaultRef, { executions: FieldValue.increment(1), autoDeleteAt: null });
     batch.set(
         db.collection('leaderboardDaily').doc(dayKey).collection('vaults').doc(String(vaultId)),
         { vaultId: String(vaultId), title, executions: FieldValue.increment(1) },

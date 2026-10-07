@@ -91,6 +91,8 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .backup-now-btn i { color: var(--cyan); }
 .protection-hint { display: flex; align-items: flex-start; gap: 8px; color: var(--text-muted); font-size: 10.5px; line-height: 1.5; padding: 10px; border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 6px; background: rgba(6, 182, 212, 0.045); }
 .protection-hint i { color: var(--cyan); margin-top: 2px; }
+.auto-delete-warning { border-color: rgba(245, 158, 11, 0.32); background: rgba(245, 158, 11, 0.07); color: #e7d2a4; }
+.auto-delete-warning i { color: #fbbf24; }
 .sidebar-save-dock { position: sticky; bottom: 0; z-index: 5; display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 10px 0 0; background: linear-gradient(180deg, rgba(11,13,18,0), var(--bg-surface) 18px); }
 .sidebar-save-dock #lock-vault-btn, .sidebar-save-dock #delete-vault-btn { flex-shrink: 0; }
 .editor-shortcut-hint { text-align: center; margin-top: 0; }
@@ -429,10 +431,12 @@ textarea { flex: 1; min-width: 0; min-height: 0; width: 100%; background: var(--
 .toast.success { border-left-color: var(--green); }
 .toast.error { border-left-color: var(--red); }
 .toast.info { border-left-color: var(--cyan); }
+.toast.warning { border-left-color: #fbbf24; }
 .toast i.toast-icon { margin-top: 1px; }
 .toast.success i.toast-icon { color: var(--green); }
 .toast.error i.toast-icon { color: var(--red); }
 .toast.info i.toast-icon { color: var(--cyan); }
+.toast.warning i.toast-icon { color: #fbbf24; }
 .toast-close { margin-left: auto; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; }
 .toast-close:hover { color: var(--text-primary); }
 .toast.leaving { animation: toast-out 0.2s ease forwards; }

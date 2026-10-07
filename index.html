@@ -121,6 +121,10 @@
 
                 <div class="sidebar-save-dock">
                     <input type="hidden" id="active-vault-id">
+                    <div class="protection-hint auto-delete-warning" role="note">
+                        <i class="fa-solid fa-clock"></i>
+                        <span>Warning: A saved vault with 0 executions is deleted after 10 hours. Saving it again restarts the timer. If you close this page, cleanup runs when you return. Download a backup to keep an unused script.</span>
+                    </div>
                     <button id="lock-vault-btn" class="btn-primary">
                         <i class="fa-solid fa-lock"></i> SAVE / UPDATE VAULT
                     </button>

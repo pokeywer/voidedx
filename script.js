@@ -4,7 +4,7 @@ import {
     GoogleAuthProvider, signInWithPopup, linkWithPopup, signInWithCredential
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
-    getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where, serverTimestamp
+    getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, deleteDoc, updateDoc, query, where, serverTimestamp, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 // --- YOUR FIREBASE CONFIG HERE ---
@@ -23,6 +23,11 @@ const db = getFirestore(app);
 
 let currentUser = null;
 let isSignUpMode = false;
+const ZERO_EXECUTION_VAULT_TTL_MS = 10 * 60 * 60 * 1000;
+const MAX_USER_VAULTS = 5;
+const vaultExpiryTimers = new Map();
+const vaultExpiryWarningIds = new Set();
+let vaultsLoadedForUid = null;
 
 // ============================================================
 // Small reusable UI helpers (toasts, field errors, confirm modal)
@@ -32,7 +37,7 @@ function showToast(message, type = 'info', duration = 4000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
-    const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info' };
+    const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `
@@ -548,6 +553,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser = user;
         const newUid = user ? user.uid : null;
         if (newUid !== lastUid) {
+            for (const timer of vaultExpiryTimers.values()) clearTimeout(timer);
+            vaultExpiryTimers.clear();
+            vaultExpiryWarningIds.clear();
+            vaultsLoadedForUid = null;
             // Identity changed (login / logout / new guest): clear the editor and the
             // vault list so nothing from the previous account stays on screen.
             resetEditor();
@@ -663,19 +672,143 @@ document.addEventListener('DOMContentLoaded', () => {
             const q = query(collection(db, "vaults"), where("uid", "==", uidAtStart));
             const snapshot = await getDocs(q);
             if (!currentUser || currentUser.uid !== uidAtStart) return;
-            cachedVaults = snapshot.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() }));
-            updateVaultCount(snapshot.size);
+            const now = Date.now();
+            const loadedVaults = [];
+            let expiredCount = 0;
+            let expirySetupFailed = false;
+
+            for (const docSnap of snapshot.docs) {
+                let data = docSnap.data();
+                const executions = Number(data.executions) || 0;
+                if (executions === 0) {
+                    let expiresAt = Number(data.autoDeleteAt);
+                    if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
+                        expiresAt = Date.now() + ZERO_EXECUTION_VAULT_TTL_MS;
+                        try {
+                            await updateDoc(docSnap.ref, { autoDeleteAt: expiresAt });
+                            data = { ...data, autoDeleteAt: expiresAt };
+                        } catch {
+                            data = { ...data, autoDeleteAt: null };
+                            expiresAt = 0;
+                            expirySetupFailed = true;
+                        }
+                    }
+
+                    if (expiresAt > 0 && expiresAt <= now
+                        && !(activeVaultId.value === docSnap.id && hasUnsavedChanges)) {
+                        try {
+                            const outcome = await deleteVaultIfStillUnused(docSnap.id, uidAtStart);
+                            if (outcome.deleted) {
+                                expiredCount++;
+                                continue;
+                            }
+                            if (outcome.data) {
+                                data = outcome.data;
+                            } else {
+                                const fresh = await getDoc(docSnap.ref);
+                                if (!fresh.exists()) { expiredCount++; continue; }
+                                data = fresh.data();
+                            }
+                        } catch {
+                            // Leave the vault visible; a later list refresh will retry.
+                        }
+                    }
+                }
+                loadedVaults.push({ id: docSnap.id, data });
+            }
+
+            if (!currentUser || currentUser.uid !== uidAtStart) return;
+            vaultsLoadedForUid = uidAtStart;
+            for (const timer of vaultExpiryTimers.values()) clearTimeout(timer);
+            vaultExpiryTimers.clear();
+            cachedVaults = loadedVaults;
+            cachedVaults.forEach(vault => scheduleUnusedVaultCleanup(vault, uidAtStart));
+            updateVaultCount(cachedVaults.length);
             updateVaultOverview();
             renderVaultList();
+            if (expiredCount) {
+                showToast(`${expiredCount} unused vault${expiredCount === 1 ? '' : 's'} removed after 10 hours with 0 executions.`, 'info', 7000);
+            }
+            if (expirySetupFailed) {
+                showToast('Could not start the 10-hour timer for an older vault. Save it once to enable cleanup.', 'warning', 7000);
+            }
         } catch (err) {
             vaultListContainer.innerHTML = `<div class="info-box text-red"><p>Error loading vaults: ${escapeHtml(friendlyAuthError(err))}</p></div>`;
         }
     }
 
+    async function deleteVaultIfStillUnused(vaultId, ownerUid) {
+        const ref = doc(db, 'vaults', vaultId);
+        return runTransaction(db, async transaction => {
+            const fresh = await transaction.get(ref);
+            if (!fresh.exists()) return { deleted: true };
+            const data = fresh.data();
+            const expiresAt = Number(data.autoDeleteAt);
+            if (data.uid !== ownerUid || (Number(data.executions) || 0) !== 0
+                || !Number.isFinite(expiresAt) || expiresAt > Date.now()) {
+                return { deleted: false, data };
+            }
+            transaction.delete(ref);
+            return { deleted: true };
+        });
+    }
+
+    function scheduleUnusedVaultCleanup(vault, ownerUid, delayOverride = null) {
+        const previous = vaultExpiryTimers.get(vault.id);
+        if (previous) clearTimeout(previous);
+
+        const expiresAt = Number(vault.data.autoDeleteAt);
+        if ((Number(vault.data.executions) || 0) !== 0 || !Number.isFinite(expiresAt) || expiresAt <= 0) {
+            vaultExpiryTimers.delete(vault.id);
+            return;
+        }
+
+        const delay = delayOverride == null ? Math.max(0, expiresAt - Date.now()) : delayOverride;
+        const timer = setTimeout(async () => {
+            vaultExpiryTimers.delete(vault.id);
+            if (!currentUser || currentUser.uid !== ownerUid) return;
+
+            if (activeVaultId.value === vault.id && hasUnsavedChanges) {
+                if (!vaultExpiryWarningIds.has(vault.id)) {
+                    vaultExpiryWarningIds.add(vault.id);
+                    showToast('This unused vault reached its 10-hour limit. Save your edits or download a backup before leaving it.', 'warning', 9000);
+                }
+                scheduleUnusedVaultCleanup(vault, ownerUid, 60 * 1000);
+                return;
+            }
+
+            try {
+                const outcome = await deleteVaultIfStillUnused(vault.id, ownerUid);
+                if (outcome.deleted) {
+                    cachedVaults = cachedVaults.filter(item => item.id !== vault.id);
+                    if (activeVaultId.value === vault.id) resetEditor();
+                    vaultExpiryWarningIds.delete(vault.id);
+                    updateVaultCount(cachedVaults.length);
+                    updateVaultOverview();
+                    renderVaultList();
+                    showToast(`"${vault.data.title || 'Untitled Vault'}" was deleted after 10 hours with 0 executions.`, 'info', 7000);
+                    return;
+                }
+
+                if (outcome.data) {
+                    const refreshed = { id: vault.id, data: outcome.data };
+                    cachedVaults = cachedVaults.map(item => item.id === vault.id ? refreshed : item);
+                    updateVaultOverview();
+                    renderVaultList();
+                    scheduleUnusedVaultCleanup(refreshed, ownerUid);
+                }
+            } catch {
+                // Cleanup is retried when the owner next reloads the vault list.
+            }
+        }, Math.min(delay, 2147483647));
+        vaultExpiryTimers.set(vault.id, timer);
+    }
+
     function updateVaultCount(count) {
         if (!vaultListCount) return;
-        vaultListCount.textContent = count;
-        vaultListCount.classList.toggle('hidden', !count);
+        vaultListCount.textContent = `${count}/${MAX_USER_VAULTS}`;
+        vaultListCount.title = `${count} of ${MAX_USER_VAULTS} saved vaults`;
+        vaultListCount.classList.remove('hidden');
     }
 
     function escapeHtml(str) {
@@ -1036,6 +1169,14 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Still starting your session — try again in a second.', 'info');
             return;
         }
+        if (!activeVaultId.value && vaultsLoadedForUid !== currentUser.uid) {
+            showToast('Your saved scripts are still loading. Wait a moment, then try again.', 'info');
+            return;
+        }
+        if (!activeVaultId.value && cachedVaults.length >= MAX_USER_VAULTS) {
+            showToast('You can save up to 5 scripts. Delete one of your saved vaults before creating another.', 'warning', 8000);
+            return;
+        }
         const code = sourceCode.value;
 
         clearFieldError(sourceCode, codeError);
@@ -1097,12 +1238,22 @@ document.addEventListener('DOMContentLoaded', () => {
             code: code,
             ...existingKeyFields,
             executions: currentExecutions,
+            autoDeleteAt: currentExecutions === 0 ? Date.now() + ZERO_EXECUTION_VAULT_TTL_MS : null,
             uid: currentUser.uid,
             updatedAt: Date.now()
         };
 
         try {
             await setDoc(doc(db, "vaults", vaultId), payload);
+            const savedVault = { id: vaultId, data: payload };
+            const savedIndex = cachedVaults.findIndex(vault => vault.id === vaultId);
+            if (savedIndex >= 0) cachedVaults[savedIndex] = savedVault;
+            else cachedVaults.push(savedVault);
+            scheduleUnusedVaultCleanup(savedVault, currentUser.uid);
+            updateVaultCount(cachedVaults.length);
+            updateVaultOverview();
+            renderVaultList();
+            vaultExpiryWarningIds.delete(vaultId);
             activeVaultId.value = vaultId;
 
             if (execCountBadge && execCountNum) {
@@ -1170,6 +1321,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const claimVaultBtn = document.getElementById('claim-vault-btn');
     claimVaultBtn.addEventListener('click', async () => {
         if (!currentUser) return;
+        if (vaultsLoadedForUid !== currentUser.uid) {
+            showToast('Your saved scripts are still loading. Wait a moment, then try again.', 'info');
+            return;
+        }
+        if (cachedVaults.length >= MAX_USER_VAULTS) {
+            showToast('You can keep up to 5 scripts. Delete one before recovering another vault.', 'warning', 8000);
+            return;
+        }
         const vid = (window.prompt('Enter the ID of your old vault (looks like vx_abc12345):') || '').trim();
         if (!vid) return;
         try {
@@ -1180,6 +1339,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.uid === currentUser.uid) { showToast('That vault is already yours.', 'info'); return; }
             if (d.uid !== 'guest') { showToast('That vault belongs to another account.', 'error'); return; }
             await updateDoc(ref, { uid: currentUser.uid });
+            cachedVaults.push({ id: vid, data: { ...d, uid: currentUser.uid } });
+            updateVaultCount(cachedVaults.length);
+            updateVaultOverview();
+            renderVaultList();
             showToast('Vault recovered — it is now tied to your account.', 'success');
             loadUserVaults();
         } catch (err) {
