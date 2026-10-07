@@ -84,7 +84,17 @@
                                 </div>
 
                                 <label class="panel-label" style="margin-top:8px; display:block;">AD-GATE LINK (OPTIONAL)</label>
-                                <input type="text" id="public-adgate-input" class="input-field" placeholder="https://your-ad-link.com/... (leave blank for no ad step)" autocomplete="off">
+                                <input type="text" id="public-adgate-input" class="input-field" placeholder="Your Linkvertise share URL (leave blank for no ad step)" autocomplete="off">
+                                <div class="info-box linkvertise-help">
+                                    <i class="fa-solid fa-circle-info text-cyan"></i>
+                                    <p>Create a Linkvertise <strong>Target Link</strong> whose destination is your Get-Key URL, then enable Linkvertise Anti-Bypass for Target Links. Paste the share URL above. Paste Links are not supported for completion verification.</p>
+                                </div>
+                                <label class="panel-label" style="margin-top:4px; display:block;">LINKVERTISE ANTI-BYPASS TOKEN</label>
+                                <div class="key-input-row">
+                                    <input type="password" id="linkvertise-token-input" class="input-field" placeholder="64-character token from Linkvertise" autocomplete="new-password">
+                                    <button type="button" id="save-linkvertise-token-btn" class="btn-accent"><i class="fa-solid fa-lock"></i> Save</button>
+                                </div>
+                                <p id="linkvertise-token-status" class="key-card-status">Verification token not saved.</p>
 
                                 <div class="key-toolbar">
                                     <span class="key-toolbar-label">ACTIONS</span>
@@ -113,6 +123,49 @@
                             <div class="info-box">
                                 <i class="fa-solid fa-circle-info text-cyan"></i>
                                 <p><strong>On:</strong> the loadstring has no key in it — a popup appears in-game (PC and mobile) asking the player to type their key. <strong>Off:</strong> the key is baked into the loadstring URL itself.</p>
+                            </div>
+                            <div id="gui-customizer" class="gui-customizer hidden">
+                                <div class="gui-customizer-fields">
+                                    <label class="gui-setting">
+                                        <span>Popup title</span>
+                                        <input type="text" id="gui-title-input" class="input-field" maxlength="40" placeholder="VoidedX Key System">
+                                    </label>
+                                    <label class="gui-setting">
+                                        <span>Subtitle</span>
+                                        <input type="text" id="gui-subtitle-input" class="input-field" maxlength="64" placeholder="Enter your key to continue">
+                                    </label>
+                                    <label class="gui-setting">
+                                        <span>Button text</span>
+                                        <input type="text" id="gui-button-input" class="input-field" maxlength="20" placeholder="Submit">
+                                    </label>
+                                    <label class="gui-setting gui-color-setting">
+                                        <span>Accent</span>
+                                        <input type="color" id="gui-accent-color" value="#06b6d4" aria-label="Popup accent color">
+                                    </label>
+                                    <label class="gui-setting gui-color-setting">
+                                        <span>Panel</span>
+                                        <input type="color" id="gui-background-color" value="#0b0d12" aria-label="Popup panel color">
+                                    </label>
+                                    <label class="gui-setting gui-color-setting">
+                                        <span>Text</span>
+                                        <input type="color" id="gui-text-color" value="#f8fafc" aria-label="Popup text color">
+                                    </label>
+                                </div>
+                                <div class="gui-preview-wrap">
+                                    <span class="panel-label">LIVE PREVIEW</span>
+                                    <div class="gui-preview-screen">
+                                        <div class="gui-preview-card" id="gui-preview-card">
+                                            <div class="gui-preview-accent" id="gui-preview-accent"></div>
+                                            <div class="gui-preview-badge" id="gui-preview-badge">🔑</div>
+                                            <strong id="gui-preview-title">VoidedX Key System</strong>
+                                            <span id="gui-preview-subtitle">Enter your key to continue</span>
+                                            <div class="gui-preview-input">Enter key here...</div>
+                                            <div class="gui-preview-button" id="gui-preview-button">Submit</div>
+                                            <small>Need a key? Tap to copy the Get-Key link</small>
+                                        </div>
+                                    </div>
+                                    <p class="gui-preview-hint">Changes appear here as you type. Click Apply Changes to save them to the in-game popup.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -165,7 +218,7 @@
                             </div>
                             <div class="info-box">
                                 <i class="fa-solid fa-circle-info text-cyan"></i>
-                                <p>This one link shows visitors all your <strong>public</strong> keys (each with its own timer and, if you add one, an ad-link step). Private keys are never listed there.</p>
+                                <p>Use this URL as the Linkvertise Target Link destination and enable Anti-Bypass for Target Links. After visitors finish the ad step, Linkvertise returns them here with a one-time proof that VoidedX verifies. Private keys are never listed on this page.</p>
                             </div>
                         </div>
                         <div id="keysystem-status" class="info-box keysystem-status"></div>

@@ -1,4 +1,5 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 // Server-only Firestore access. Bypasses security rules, so it must never
@@ -14,3 +15,4 @@ function init() {
 
 export const db = getFirestore(init());
 export { FieldValue };
+export function getAdminAuth() { return getAuth(init()); }

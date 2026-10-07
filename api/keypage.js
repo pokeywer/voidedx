@@ -1,9 +1,12 @@
 import { db, FieldValue } from './_admin.js';
+import { randomBytes } from 'node:crypto';
+import { decryptLinkvertiseToken } from './_linkvertise.js';
 
 // Public endpoint behind key.html.
 // - GET               -> vault info + public key settings (no key values, no private keys)
-// - GET ?action=start  -> begins a timed hold before a key can be claimed
-// - GET ?action=claim  -> issues/returns the current public key, IF enough time has passed
+// - GET ?action=start  -> begins a timed hold when no Linkvertise gate is configured
+// - POST ?action=verify -> verifies Linkvertise's one-time return hash, then starts the hold
+// - GET ?action=claim  -> issues the current public key after the server-side hold
 //
 // The wait is enforced using a timestamp stored server-side when the hold starts.
 // Nothing the browser sends is trusted for timing, so it can't be skipped by
@@ -38,8 +41,63 @@ export default async function handler(req, res) {
             if (!v.requireKey || !v.publicKeyConfig || !v.publicKeyConfig.enabled) {
                 return json(res, 400, { ok: false, message: 'This vault has no public key to get.' });
             }
-            const claimToken = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+            if (v.publicKeyConfig.adGateUrl) {
+                return json(res, 403, { ok: false, message: 'Complete the Linkvertise link and return here before requesting a key.' });
+            }
+            const claimToken = randomBytes(32).toString('hex');
             await vaultRef.set({ pendingClaims: { [claimToken]: Date.now() } }, { merge: true });
+            return json(res, 200, { ok: true, token: claimToken, waitMs: WAIT_MS });
+        }
+
+        if (action === 'verify') {
+            if (req.method !== 'POST') {
+                res.setHeader('Allow', 'POST');
+                return json(res, 405, { ok: false, message: 'Method not allowed.' });
+            }
+            const snap = await vaultRef.get();
+            if (!snap.exists) return json(res, 404, { ok: false, message: 'Vault not found.' });
+            const v = snap.data();
+            const cfg = v.publicKeyConfig;
+            if (!v.requireKey || !cfg || !cfg.enabled || !cfg.adGateUrl) {
+                return json(res, 400, { ok: false, message: 'This vault does not have a Linkvertise gate enabled.' });
+            }
+
+            const hash = String((req.body && req.body.hash) || '');
+            if (!/^[a-f0-9]{64}$/i.test(hash)) {
+                return json(res, 400, { ok: false, message: 'The Linkvertise return code is missing or invalid.' });
+            }
+
+            const credentialSnap = await db.collection('linkvertiseCredentials').doc(String(id)).get();
+            if (!credentialSnap.exists) {
+                return json(res, 403, { ok: false, message: 'The owner has not configured Linkvertise verification yet.' });
+            }
+            let linkvertiseToken;
+            try {
+                linkvertiseToken = decryptLinkvertiseToken(credentialSnap.data());
+            } catch {
+                return json(res, 503, { ok: false, message: 'Linkvertise verification is temporarily unavailable.' });
+            }
+            if (!linkvertiseToken) {
+                return json(res, 503, { ok: false, message: 'Linkvertise verification is temporarily unavailable.' });
+            }
+
+            let verification;
+            try {
+                const verifyUrl = new URL('https://publisher.linkvertise.com/api/v1/anti_bypassing');
+                verifyUrl.searchParams.set('token', linkvertiseToken);
+                verifyUrl.searchParams.set('hash', hash);
+                const response = await fetch(verifyUrl, { method: 'POST' });
+                verification = response.ok ? (await response.text()).trim().toUpperCase() : '';
+            } catch {
+                return json(res, 502, { ok: false, message: 'Could not reach Linkvertise. Please return and try again.' });
+            }
+
+            if (verification !== 'TRUE') {
+                return json(res, 403, { ok: false, message: 'Linkvertise did not confirm this visit. Finish the target link and return again.' });
+            }
+
+            const claimToken = randomBytes(32).toString('hex');
+            await vaultRef.set({ pendingClaims: { [claimToken]: { startedAt: Date.now(), linkvertiseVerified: true } } }, { merge: true });
             return json(res, 200, { ok: true, token: claimToken, waitMs: WAIT_MS });
         }
 
@@ -54,9 +112,13 @@ export default async function handler(req, res) {
                 if (!v.requireKey || !cfg || !cfg.enabled) {
                     return { ok: false, status: 400, message: 'This vault has no public key to get.' };
                 }
-                const issuedAt = v.pendingClaims && v.pendingClaims[token];
+                const pendingClaim = v.pendingClaims && v.pendingClaims[token];
+                const issuedAt = typeof pendingClaim === 'number' ? pendingClaim : pendingClaim && pendingClaim.startedAt;
                 if (!issuedAt) {
                     return { ok: false, status: 400, message: 'That request expired or is invalid. Start again.' };
+                }
+                if (cfg && cfg.adGateUrl && !(pendingClaim && pendingClaim.linkvertiseVerified)) {
+                    return { ok: false, status: 403, message: 'Complete the Linkvertise step before claiming this key.' };
                 }
                 if (Date.now() - issuedAt < WAIT_MS) {
                     return { ok: false, status: 425, message: "Please wait — the timer isn't done yet." };
@@ -112,7 +174,8 @@ export default async function handler(req, res) {
             publicKey: {
                 label: cfg.label || 'Public Key',
                 durationDays: cfg.durationDays || null,
-                adGateUrl: cfg.adGateUrl || ''
+                adGateUrl: cfg.adGateUrl || '',
+                linkvertiseConfigured: (await db.collection('linkvertiseCredentials').doc(String(id)).get()).exists
             }
         });
     } catch (err) {

@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         if (vaultData.requireKey && vaultData.guiMode) {
             res.setHeader('Content-Type', 'text/plain');
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            return res.status(200).send(buildGuiLoader(id, getOrigin(req)));
+            return res.status(200).send(buildGuiLoader(id, getOrigin(req), vaultData.guiAppearance));
         }
 
         res.setHeader('Content-Type', 'text/plain');
@@ -110,9 +110,14 @@ function getOrigin(req) {
     return `${proto}://${host}`;
 }
 
-function buildGuiLoader(id, origin) {
+function buildGuiLoader(id, origin, rawAppearance = {}) {
     const verifyBase = `${origin}/api/verify`;
     const keyPageUrl = `${origin}/key.html?id=${id}`;
+    const appearance = sanitizeGuiAppearance(rawAppearance);
+    const toRgb = hex => hex.match(/[a-f\d]{2}/gi).map(part => parseInt(part, 16));
+    const [bgR, bgG, bgB] = toRgb(appearance.backgroundColor);
+    const [accentR, accentG, accentB] = toRgb(appearance.accentColor);
+    const [textR, textG, textB] = toRgb(appearance.textColor);
     return `
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -127,12 +132,12 @@ local function getGuiParent()
     return player:WaitForChild("PlayerGui")
 end
 
-local COL_BG = Color3.fromRGB(11, 13, 18)
+local COL_BG = Color3.fromRGB(${bgR}, ${bgG}, ${bgB})
 local COL_INPUT = Color3.fromRGB(22, 26, 36)
 local COL_BORDER = Color3.fromRGB(33, 38, 53)
-local COL_CYAN = Color3.fromRGB(6, 182, 212)
-local COL_ACCENT = Color3.fromRGB(99, 102, 241)
-local COL_TEXT = Color3.fromRGB(248, 250, 252)
+local COL_CYAN = Color3.fromRGB(${accentR}, ${accentG}, ${accentB})
+local COL_ACCENT = COL_CYAN
+local COL_TEXT = Color3.fromRGB(${textR}, ${textG}, ${textB})
 local COL_MUTED = Color3.fromRGB(100, 116, 139)
 local COL_RED = Color3.fromRGB(239, 68, 68)
 local COL_GREEN = Color3.fromRGB(16, 185, 129)
@@ -253,7 +258,7 @@ badgeIcon.Parent = badge
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 24)
 title.BackgroundTransparency = 1
-title.Text = "VoidedX Key System"
+title.Text = ${luaString(appearance.title)}
 title.TextColor3 = COL_TEXT
 title.Font = Enum.Font.GothamBold
 title.TextScaled = true
@@ -263,7 +268,7 @@ title.Parent = content
 local subtitle = Instance.new("TextLabel")
 subtitle.Size = UDim2.new(1, 0, 0, 16)
 subtitle.BackgroundTransparency = 1
-subtitle.Text = "Enter your key to continue"
+subtitle.Text = ${luaString(appearance.subtitle)}
 subtitle.TextColor3 = COL_MUTED
 subtitle.Font = Enum.Font.Gotham
 subtitle.TextScaled = true
@@ -304,7 +309,7 @@ end)
 local submitBtn = Instance.new("TextButton")
 submitBtn.Size = UDim2.new(1, 0, 0, 42)
 submitBtn.BackgroundColor3 = COL_CYAN
-submitBtn.Text = "Submit"
+submitBtn.Text = ${luaString(appearance.buttonLabel)}
 submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Font = Enum.Font.GothamBold
 submitBtn.TextScaled = true
@@ -468,4 +473,22 @@ inputBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then attemptVerify() end
 end)
 `.trim();
+}
+
+function sanitizeGuiAppearance(raw = {}) {
+    if (!raw || typeof raw !== 'object') raw = {};
+    const text = (value, fallback, maxLength) => typeof value === 'string'
+        ? value.replace(/[\r\n\t\x00-\x1f\x7f]/g, ' ').trim().slice(0, maxLength) || fallback
+        : fallback;
+    const color = (value, fallback) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
+        ? value
+        : fallback;
+    return {
+        title: text(raw.title, 'VoidedX Key System', 40),
+        subtitle: text(raw.subtitle, 'Enter your key to continue', 64),
+        buttonLabel: text(raw.buttonLabel, 'Submit', 20),
+        accentColor: color(raw.accentColor, '#06b6d4'),
+        backgroundColor: color(raw.backgroundColor, '#0b0d12'),
+        textColor: color(raw.textColor, '#f8fafc')
+    };
 }

@@ -507,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let currentExecutions = 0;
         let existingKeyFields = {
-            requireKey: false, guiMode: false, keys: [], key: '', keyGeneratedAt: null,
+            requireKey: false, guiMode: false, guiAppearance: null, publicKeyConfig: null, keys: [], key: '', keyGeneratedAt: null,
             ipLock: false, boundIp: null, bannedUsers: []
         };
 
@@ -522,6 +522,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     existingKeyFields = {
                         requireKey: !!existing.requireKey,
                         guiMode: !!existing.guiMode,
+                        guiAppearance: existing.guiAppearance || null,
+                        publicKeyConfig: existing.publicKeyConfig || null,
                         keys: Array.isArray(existing.keys) ? existing.keys : [],
                         key: existing.key || '',
                         keyGeneratedAt: existing.keyGeneratedAt || null,

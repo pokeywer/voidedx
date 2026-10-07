@@ -112,10 +112,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const publicMaxUsersInput = document.getElementById('public-maxusers-input');
     const publicUnlimitedToggle = document.getElementById('public-unlimited-toggle');
     const publicAdGateInput = document.getElementById('public-adgate-input');
+    const linkvertiseTokenInput = document.getElementById('linkvertise-token-input');
+    const saveLinkvertiseTokenBtn = document.getElementById('save-linkvertise-token-btn');
+    const linkvertiseTokenStatus = document.getElementById('linkvertise-token-status');
     const publicRegenerateBtn = document.getElementById('public-regenerate-btn');
     const publicTerminateBtn = document.getElementById('public-terminate-btn');
     const publicKeyStatus = document.getElementById('public-key-status');
     const chkGuiMode = document.getElementById('chk-gui-mode');
+    const guiCustomizer = document.getElementById('gui-customizer');
+    const guiTitleInput = document.getElementById('gui-title-input');
+    const guiSubtitleInput = document.getElementById('gui-subtitle-input');
+    const guiButtonInput = document.getElementById('gui-button-input');
+    const guiAccentColor = document.getElementById('gui-accent-color');
+    const guiBackgroundColor = document.getElementById('gui-background-color');
+    const guiTextColor = document.getElementById('gui-text-color');
+    const guiPreviewCard = document.getElementById('gui-preview-card');
+    const guiPreviewAccent = document.getElementById('gui-preview-accent');
+    const guiPreviewBadge = document.getElementById('gui-preview-badge');
+    const guiPreviewTitle = document.getElementById('gui-preview-title');
+    const guiPreviewSubtitle = document.getElementById('gui-preview-subtitle');
+    const guiPreviewButton = document.getElementById('gui-preview-button');
     const chkIpLock = document.getElementById('chk-ip-lock');
     const ipLockStatus = document.getElementById('ip-lock-status');
     const ipLockStatusText = document.getElementById('ip-lock-status-text');
@@ -151,6 +167,87 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentKeys = [];
     let currentOwnerLegacy = false;
     let currentBannedUsers = [];
+    let linkvertiseTokenConfigured = false;
+
+    const defaultGuiAppearance = {
+        title: 'VoidedX Key System',
+        subtitle: 'Enter your key to continue',
+        buttonLabel: 'Submit',
+        accentColor: '#06b6d4',
+        backgroundColor: '#0b0d12',
+        textColor: '#f8fafc'
+    };
+
+    function renderGuiPreview() {
+        const accent = guiAccentColor.value || defaultGuiAppearance.accentColor;
+        guiPreviewCard.style.backgroundColor = guiBackgroundColor.value || defaultGuiAppearance.backgroundColor;
+        guiPreviewCard.style.color = guiTextColor.value || defaultGuiAppearance.textColor;
+        guiPreviewAccent.style.backgroundColor = accent;
+        guiPreviewBadge.style.backgroundColor = accent;
+        guiPreviewButton.style.backgroundColor = accent;
+        guiPreviewTitle.textContent = guiTitleInput.value.trim() || defaultGuiAppearance.title;
+        guiPreviewSubtitle.textContent = guiSubtitleInput.value.trim() || defaultGuiAppearance.subtitle;
+        guiPreviewButton.textContent = guiButtonInput.value.trim() || defaultGuiAppearance.buttonLabel;
+    }
+
+    function setGuiCustomizerVisible() {
+        guiCustomizer.classList.toggle('hidden', !chkGuiMode.checked);
+    }
+
+    async function loadLinkvertiseConfig() {
+        try {
+            const user = auth.currentUser || await waitForUser();
+            const response = await fetch(`/api/linkvertise-config?id=${encodeURIComponent(vaultId)}`, {
+                headers: { Authorization: `Bearer ${await user.getIdToken()}` }
+            });
+            const data = await response.json();
+            if (!data.ok) throw new Error(data.message || 'Could not load Linkvertise settings.');
+            linkvertiseTokenConfigured = !!data.configured;
+            linkvertiseTokenStatus.textContent = linkvertiseTokenConfigured
+                ? 'Anti-Bypass token saved securely on the server.'
+                : 'No token saved. Ad-gate links stay disabled until you save one.';
+        } catch (err) {
+            linkvertiseTokenConfigured = false;
+            linkvertiseTokenStatus.textContent = err.message || 'Could not load Linkvertise settings.';
+        }
+    }
+
+    saveLinkvertiseTokenBtn.addEventListener('click', async () => {
+        const token = linkvertiseTokenInput.value.trim();
+        if (!/^[a-f0-9]{64}$/i.test(token)) {
+            showToast('Paste the 64-character Anti-Bypass token from Linkvertise.', 'error');
+            return;
+        }
+        saveLinkvertiseTokenBtn.disabled = true;
+        try {
+            const user = auth.currentUser || await waitForUser();
+            const response = await fetch(`/api/linkvertise-config?id=${encodeURIComponent(vaultId)}`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${await user.getIdToken()}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token })
+            });
+            const data = await response.json();
+            if (!data.ok) throw new Error(data.message || 'Could not save the token.');
+            linkvertiseTokenConfigured = true;
+            linkvertiseTokenInput.value = '';
+            linkvertiseTokenStatus.textContent = 'Anti-Bypass token saved securely on the server.';
+            showToast('Linkvertise verification token saved.', 'success');
+        } catch (err) {
+            showToast(err.message || 'Could not save the token.', 'error', 6000);
+        } finally {
+            saveLinkvertiseTokenBtn.disabled = false;
+        }
+    });
+
+    [guiTitleInput, guiSubtitleInput, guiButtonInput, guiAccentColor, guiBackgroundColor, guiTextColor]
+        .forEach(input => input.addEventListener('input', renderGuiPreview));
+    chkGuiMode.addEventListener('change', () => {
+        setGuiCustomizerVisible();
+        renderGuiPreview();
+    });
 
     chkKeySystem.addEventListener('change', () => {
         keySystemFields.classList.toggle('hidden', !chkKeySystem.checked);
@@ -567,6 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ksError.classList.remove('hidden');
                 return;
             }
+            await loadLinkvertiseConfig();
             currentOwnerLegacy = data.uid === 'guest';
             ksVaultTitle.textContent = data.title || 'Untitled Vault';
 
@@ -597,6 +695,15 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPublicKeyStatus(getPublicKeyEntry(data));
 
             chkGuiMode.checked = !!data.guiMode;
+            const appearance = { ...defaultGuiAppearance, ...(data.guiAppearance || {}) };
+            guiTitleInput.value = appearance.title;
+            guiSubtitleInput.value = appearance.subtitle;
+            guiButtonInput.value = appearance.buttonLabel;
+            guiAccentColor.value = appearance.accentColor;
+            guiBackgroundColor.value = appearance.backgroundColor;
+            guiTextColor.value = appearance.textColor;
+            setGuiCustomizerVisible();
+            renderGuiPreview();
             chkIpLock.checked = !!data.ipLock;
 
             currentBannedUsers = Array.isArray(data.bannedUsers) ? data.bannedUsers : [];
@@ -644,10 +751,22 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('The public key ad-gate link looks invalid — only http/https links are allowed.', 'error', 5000);
             return;
         }
+        if (chkKeySystem.checked && chkPublicKey.checked && publicAdGateInput.value.trim() && !linkvertiseTokenConfigured) {
+            showToast('Save your Linkvertise Anti-Bypass token before applying an ad-gate link.', 'error', 6000);
+            return;
+        }
 
         const requireKey = chkKeySystem.checked;
         const guiMode = requireKey && chkGuiMode.checked;
         const ipLock = requireKey && chkIpLock.checked;
+        const guiAppearance = {
+            title: guiTitleInput.value.trim().slice(0, 40) || defaultGuiAppearance.title,
+            subtitle: guiSubtitleInput.value.trim().slice(0, 64) || defaultGuiAppearance.subtitle,
+            buttonLabel: guiButtonInput.value.trim().slice(0, 20) || defaultGuiAppearance.buttonLabel,
+            accentColor: guiAccentColor.value,
+            backgroundColor: guiBackgroundColor.value,
+            textColor: guiTextColor.value
+        };
         const privateKeysPayload = requireKey ? currentKeys.map(k => ({
             id: k.id, label: k.label.trim() || 'Key', key: k.key.trim(),
             priority: k.priority || 1, durationDays: k.durationDays || null,
@@ -685,7 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const primaryKey = privateKeysPayload[0] || null;
 
             await updateDoc(doc(db, "vaults", vaultId), {
-                requireKey, guiMode, keys: keysPayload, publicKeyConfig,
+                requireKey, guiMode, guiAppearance, keys: keysPayload, publicKeyConfig,
                 key: primaryKey ? primaryKey.key : '',
                 keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
                 ipLock, boundIp,
