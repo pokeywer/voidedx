@@ -117,6 +117,45 @@ function friendlyAuthError(err) {
     }
 }
 
+// Start the backup download directly from the Save button click. Browsers can
+// block downloads triggered only after the later Firebase requests complete.
+function downloadLocalVaultBackup(vaultId, title, code) {
+    let blobUrl = '';
+    let link = null;
+    try {
+        const getKeyLine = vaultId
+            ? `Get-key page: ${window.location.origin}/key.html?id=${encodeURIComponent(vaultId)}`
+            : 'Get-key page: Available after this draft is saved.';
+        const backupTxt = [
+            '==================================================',
+            'VOIDEDX VAULT BACKUP',
+            `Title: ${String(title).replace(/[\r\n]+/g, ' ')}`,
+            `Vault ID: ${vaultId || 'Not saved yet'}`,
+            getKeyLine,
+            'For protected vaults, copy the current loader from VoidedX after saving.',
+            '==================================================',
+            code
+        ].join('\n');
+        const safeVaultId = String(vaultId || 'draft').replace(/[^a-z0-9_-]/gi, '_').slice(0, 80) || 'vault';
+        blobUrl = URL.createObjectURL(new Blob([backupTxt], { type: 'text/plain;charset=utf-8' }));
+        link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${safeVaultId}_backup.txt`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        // Let the browser finish consuming the Blob URL before releasing it.
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        return true;
+    } catch (error) {
+        if (link) link.remove();
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+        console.warn('Could not start the local vault backup download:', error);
+        return false;
+    }
+}
+
 // Simple promise-based replacement for window.confirm, styled to match the app.
 function customConfirm({ title, message, confirmLabel = 'Delete' }) {
     return new Promise(resolve => {
@@ -162,12 +201,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const scriptTitle = document.getElementById('script-title');
     const titleError = document.getElementById('title-error');
     const resultOverlay = document.getElementById('result-overlay');
+    const editorSaveStatus = document.getElementById('editor-save-status');
+    const editorSaveLabel = document.getElementById('editor-save-label');
     const lsOutput = document.getElementById('ls-output');
     const copyBtn = document.getElementById('copy-out-btn');
     const getKeyRow = document.getElementById('get-key-row');
     const getKeyOutput = document.getElementById('get-key-output');
     const copyKeyLinkBtn = document.getElementById('copy-key-link-btn');
     const chkBackup = document.getElementById('chk-backup');
+    const backupNowBtn = document.getElementById('backup-now-btn');
+    const protectionKeyStatus = document.getElementById('protection-key-status');
     const openKeysystemBtn = document.getElementById('open-keysystem-btn');
     const keysystemStatusBadge = document.getElementById('keysystem-status-badge');
     const activeVaultId = document.getElementById('active-vault-id');
@@ -176,9 +219,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const vaultListToggle = document.getElementById('vault-list-toggle');
     const vaultListPanel = document.getElementById('vault-list-panel');
     const vaultListCount = document.getElementById('vault-list-count');
+    const vaultSearch = document.getElementById('vault-search');
+    const vaultSort = document.getElementById('vault-sort');
+    const vaultFilter = document.getElementById('vault-filter');
+    const vaultStatTotal = document.getElementById('vault-stat-total');
+    const vaultStatExecutions = document.getElementById('vault-stat-executions');
+    const vaultStatProtected = document.getElementById('vault-stat-protected');
     const execCountBadge = document.getElementById('exec-count-badge');
     const execCountNum = document.getElementById('exec-count-num');
     const promoShareBtn = document.getElementById('promo-share-btn');
+
+    let hasUnsavedChanges = false;
+    let cachedVaults = [];
+
+    function setEditorDirty(isDirty) {
+        hasUnsavedChanges = !!isDirty;
+        if (!editorSaveStatus) return;
+        editorSaveStatus.classList.toggle('unsaved', hasUnsavedChanges);
+        editorSaveStatus.setAttribute('aria-label', hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved');
+        if (editorSaveStatus.querySelector('i')) {
+            editorSaveStatus.querySelector('i').className = hasUnsavedChanges
+                ? 'fa-solid fa-circle-exclamation'
+                : 'fa-solid fa-circle-check';
+        }
+        if (editorSaveLabel) editorSaveLabel.textContent = hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved';
+    }
+
+    function setProtectionKeyStatus(isEnabled) {
+        if (!protectionKeyStatus) return;
+        protectionKeyStatus.textContent = isEnabled ? 'ON' : 'OFF';
+        protectionKeyStatus.classList.toggle('on', !!isEnabled);
+        protectionKeyStatus.classList.toggle('off', !isEnabled);
+    }
+
+    window.addEventListener('beforeunload', (event) => {
+        if (!hasUnsavedChanges) return;
+        event.preventDefault();
+        event.returnValue = '';
+    });
 
     if (promoShareBtn) {
         promoShareBtn.addEventListener('click', () => {
@@ -378,6 +456,82 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------------- Vault list ----------------
 
+    function updateVaultOverview() {
+        const totalExecutions = cachedVaults.reduce((sum, vault) => sum + (Number(vault.data.executions) || 0), 0);
+        const protectedCount = cachedVaults.filter(vault => !!vault.data.requireKey).length;
+        if (vaultStatTotal) vaultStatTotal.textContent = cachedVaults.length.toLocaleString();
+        if (vaultStatExecutions) vaultStatExecutions.textContent = totalExecutions.toLocaleString();
+        if (vaultStatProtected) vaultStatProtected.textContent = protectedCount.toLocaleString();
+    }
+
+    function vaultUpdatedAt(value) {
+        if (typeof value === 'number') return value;
+        if (value && typeof value.toMillis === 'function') return value.toMillis();
+        return 0;
+    }
+
+    function renderVaultList() {
+        if (!vaultListContainer) return;
+        vaultListContainer.innerHTML = '';
+
+        if (!cachedVaults.length) {
+            vaultListContainer.innerHTML = '<div class="info-box"><p>No vaults found. Create one!</p></div>';
+            return;
+        }
+
+        const searchTerm = vaultSearch ? vaultSearch.value.trim().toLowerCase() : '';
+        const filterMode = vaultFilter ? vaultFilter.value : 'all';
+        const visibleVaults = cachedVaults.filter(vault => {
+            const title = String(vault.data.title || '').toLowerCase();
+            const matchesSearch = !searchTerm || title.includes(searchTerm) || vault.id.toLowerCase().includes(searchTerm);
+            const matchesProtection = filterMode === 'all'
+                || (filterMode === 'protected' && !!vault.data.requireKey)
+                || (filterMode === 'open' && !vault.data.requireKey);
+            return matchesSearch && matchesProtection;
+        });
+        const sortMode = vaultSort ? vaultSort.value : 'recent';
+        visibleVaults.sort((a, b) => {
+            if (sortMode === 'executions') {
+                return (Number(b.data.executions) || 0) - (Number(a.data.executions) || 0)
+                    || String(a.data.title || '').localeCompare(String(b.data.title || ''));
+            }
+            if (sortMode === 'title') {
+                return String(a.data.title || '').localeCompare(String(b.data.title || ''));
+            }
+            return vaultUpdatedAt(b.data.updatedAt) - vaultUpdatedAt(a.data.updatedAt);
+        });
+
+        if (!visibleVaults.length) {
+            vaultListContainer.innerHTML = '<div class="info-box"><p>No vaults match that search.</p></div>';
+            return;
+        }
+
+        visibleVaults.forEach(vault => {
+            const item = vault.data;
+            const div = document.createElement('div');
+            div.className = 'vault-item';
+            const execs = Number(item.executions) || 0;
+            const title = String(item.title || 'Untitled Vault');
+            const initial = title.trim().charAt(0).toUpperCase() || '?';
+            div.innerHTML = `
+                <span class="vault-item-main">
+                    <span class="vault-item-icon">${escapeHtml(initial)}</span>
+                    <span class="vault-item-title">${escapeHtml(title)}</span>
+                </span>
+                <span class="vault-item-badge"><i class="fa-solid fa-play"></i> ${execs.toLocaleString()}</span>
+            `;
+            div.addEventListener('click', () => {
+                if (hasUnsavedChanges && !window.confirm('You have unsaved changes. Discard them and open this vault?')) return;
+                loadVaultIntoEditor(vault.id, item);
+            });
+            vaultListContainer.appendChild(div);
+        });
+    }
+
+    if (vaultSearch) vaultSearch.addEventListener('input', renderVaultList);
+    if (vaultSort) vaultSort.addEventListener('change', renderVaultList);
+    if (vaultFilter) vaultFilter.addEventListener('change', renderVaultList);
+
     async function loadUserVaults() {
         if (!currentUser) return;
         vaultListContainer.innerHTML = '<div class="info-box"><p><i class="fa-solid fa-spinner fa-spin"></i> Loading vaults...</p></div>';
@@ -386,28 +540,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const q = query(collection(db, "vaults"), where("uid", "==", uidAtStart));
             const snapshot = await getDocs(q);
             if (!currentUser || currentUser.uid !== uidAtStart) return;
-            vaultListContainer.innerHTML = '';
+            cachedVaults = snapshot.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() }));
             updateVaultCount(snapshot.size);
-            if (snapshot.empty) {
-                vaultListContainer.innerHTML = '<div class="info-box"><p>No vaults found. Create one!</p></div>';
-                return;
-            }
-            snapshot.forEach(docSnap => {
-                const item = docSnap.data();
-                const div = document.createElement('div');
-                div.className = 'vault-item';
-                const execs = item.executions || 0;
-                const initial = (item.title || '?').trim().charAt(0).toUpperCase() || '?';
-                div.innerHTML = `
-                    <span class="vault-item-main">
-                        <span class="vault-item-icon">${escapeHtml(initial)}</span>
-                        <span class="vault-item-title">${escapeHtml(item.title)}</span>
-                    </span>
-                    <span class="vault-item-badge"><i class="fa-solid fa-play"></i> ${execs}</span>
-                `;
-                div.addEventListener('click', () => loadVaultIntoEditor(docSnap.id, item));
-                vaultListContainer.appendChild(div);
-            });
+            updateVaultOverview();
+            renderVaultList();
         } catch (err) {
             vaultListContainer.innerHTML = `<div class="info-box text-red"><p>Error loading vaults: ${escapeHtml(friendlyAuthError(err))}</p></div>`;
         }
@@ -429,6 +565,8 @@ document.addEventListener('DOMContentLoaded', () => {
         activeVaultId.value = id;
         scriptTitle.value = data.title || '';
         sourceCode.value = data.code || '';
+        setEditorDirty(false);
+        setProtectionKeyStatus(!!data.requireKey);
         updateLineNumbers();
         clearFieldError(sourceCode, codeError);
         editingIndicator.classList.remove('hidden');
@@ -481,9 +619,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateLineNumbers();
 
-    sourceCode.addEventListener('input', () => clearFieldError(sourceCode, codeError));
+    sourceCode.addEventListener('input', () => {
+        clearFieldError(sourceCode, codeError);
+        setEditorDirty(true);
+    });
+    scriptTitle.addEventListener('input', () => {
+        clearFieldError(scriptTitle, titleError);
+        setEditorDirty(true);
+    });
+
+    if (backupNowBtn) {
+        backupNowBtn.addEventListener('click', () => {
+            const code = sourceCode.value;
+            if (!code.trim()) {
+                showToast('Paste a script into the editor before downloading a backup.', 'info');
+                sourceCode.focus();
+                return;
+            }
+            const title = scriptTitle.value.trim() || 'Untitled Vault';
+            if (downloadLocalVaultBackup(activeVaultId.value, title, code)) {
+                showToast('Backup download started. Check your browser’s Downloads.', 'success');
+            } else {
+                showToast('The browser could not start the backup download.', 'error');
+            }
+        });
+    }
 
     let isSaving = false;
+
+    document.addEventListener('keydown', (event) => {
+        const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+        const isEditingVault = event.target === sourceCode || event.target === scriptTitle;
+        if (!isSaveShortcut || !isEditingVault) return;
+        event.preventDefault();
+        lockBtn.click();
+    });
 
     lockBtn.addEventListener('click', async () => {
         if (isSaving) return;
@@ -504,6 +674,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const title = scriptTitle.value.trim() || 'Untitled Vault';
         const vaultId = activeVaultId.value || ('vx_' + Math.random().toString(36).substring(2, 10));
+
+        isSaving = true;
+        const originalBtnHtml = lockBtn.innerHTML;
+        lockBtn.disabled = true;
+        lockBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SAVING...';
+
+        // Trigger the local download before awaiting Firestore so the browser
+        // still recognizes the Save button click as the user's action.
+        if (chkBackup && chkBackup.checked && !downloadLocalVaultBackup(vaultId, title, code)) {
+            showToast('Vault saving will continue, but the browser could not start the .txt backup download.', 'info', 6000);
+        }
 
         let currentExecutions = 0;
         let existingKeyFields = {
@@ -545,11 +726,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updatedAt: Date.now()
         };
 
-        isSaving = true;
-        const originalBtnHtml = lockBtn.innerHTML;
-        lockBtn.disabled = true;
-        lockBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SAVING...';
-
         try {
             await setDoc(doc(db, "vaults", vaultId), payload);
             activeVaultId.value = vaultId;
@@ -575,6 +751,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             showToast('Vault saved and locked!', 'success');
+            setEditorDirty(false);
+            setProtectionKeyStatus(existingKeyFields.requireKey);
 
             if (currentUser) {
                 editingIndicator.classList.remove('hidden');
@@ -582,15 +760,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadUserVaults();
             }
 
-            if (chkBackup && chkBackup.checked) {
-                const backupTxt = `==================================================\nVOIDEDX VAULT BACKUP\nTitle: ${title}\nVault ID: ${vaultId}\nKey Protection: ${requireKey ? 'Enabled (' + key + ')' : 'Disabled'}\nLoadstring: ${loadstringCmd}\n==================================================\n${code}`;
-                const blob = new Blob([backupTxt], { type: 'text/plain' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `${vaultId}_backup.txt`;
-                a.click();
-                URL.revokeObjectURL(a.href);
-            }
         } catch (err) {
             showToast('Failed to save vault: ' + friendlyAuthError(err), 'error', 6000);
         } finally {
@@ -606,6 +775,8 @@ document.addEventListener('DOMContentLoaded', () => {
         activeVaultId.value = '';
         scriptTitle.value = '';
         sourceCode.value = '';
+        setEditorDirty(false);
+        setProtectionKeyStatus(false);
         updateLineNumbers();
         keysystemStatusBadge.textContent = 'OFF';
         keysystemStatusBadge.classList.remove('on');
@@ -640,6 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     newVaultBtn.addEventListener('click', () => {
+        if (hasUnsavedChanges && !window.confirm('You have unsaved changes. Discard them and start a new vault?')) return;
         resetEditor();
         scriptTitle.focus();
         showToast('Ready for a new vault.', 'info', 2000);
