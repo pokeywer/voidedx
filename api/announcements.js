@@ -1,9 +1,9 @@
 import { db } from './_admin.js';
 import { hasAdminSession, sameOriginRequest } from './_adminSession.js';
 
-function json(res, status, body) {
+function json(res, status, body, cache = 'no-store') {
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Cache-Control', cache);
     return res.status(status).json(body);
 }
 
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
                     linkLabel: data.linkLabel || 'Learn more',
                     updatedAt: Number(data.updatedAt) || 0
                 } : null
-            });
+            }, 'public, max-age=30, s-maxage=60, stale-while-revalidate=120');
         } catch (err) {
             console.error('Could not load announcement:', err);
             return json(res, 500, { ok: false, message: 'Could not load the announcement.' });

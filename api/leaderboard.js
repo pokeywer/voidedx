@@ -1,8 +1,8 @@
 import { db } from './_admin.js';
 
-function json(res, status, body) {
+function json(res, status, body, cache = 'no-store') {
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', cache);
     return res.status(status).json(body);
 }
 
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
                 today: rows(dailySnap),
                 month: rows(monthlySnap)
             }
-        });
+        }, 'public, max-age=15, s-maxage=60, stale-while-revalidate=120');
     } catch (err) {
         return json(res, 500, { ok: false, message: 'Could not load leaderboard.' });
     }

@@ -64,7 +64,11 @@ async function requestApi(url, { method = 'GET', body, authRequired = false } = 
     const headers = {};
     if (body) headers['Content-Type'] = 'application/json';
     if (authRequired && currentUser) headers.Authorization = `Bearer ${await currentUser.getIdToken()}`;
-    const response = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+    const options = { method, headers, body: body ? JSON.stringify(body) : undefined };
+    // The public browse list is shared by all visitors and the API response is
+    // cached at Vercel. Keep authenticated, changing, and detail requests private.
+    if (method !== 'GET' || url !== '/api/scripts') options.cache = 'no-store';
+    const response = await fetch(url, options);
     let data = {};
     try { data = await response.json(); } catch {}
     if (!response.ok || data.ok === false) throw new Error(data.message || 'Something went wrong. Please try again.');

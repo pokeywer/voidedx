@@ -132,7 +132,7 @@ async function loadSiteAnnouncement() {
     const banner = document.getElementById('site-announcement');
     if (!banner) return;
     try {
-        const response = await fetch('/api/announcements', { cache: 'no-store' });
+        const response = await fetch('/api/announcements');
         if (!response.ok) return;
         const data = await response.json();
         const announcement = data && data.announcement;

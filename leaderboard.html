@@ -284,7 +284,7 @@
             buttons.forEach((button) => { button.disabled = true; button.classList.add('is-loading'); });
             if (!board) showState('fa-solid fa-spinner fa-spin', 'Loading rankings…');
             try {
-                const response = await fetch('/api/leaderboard', { cache: 'no-store' });
+                const response = await fetch('/api/leaderboard');
                 const result = await response.json();
                 if (!response.ok || !result.ok) throw new Error(result.message || 'Unable to load the leaderboard.');
                 board = result;
