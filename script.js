@@ -367,6 +367,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetAuthForm() {
         authEmail.value = '';
         authPassword.value = '';
+        // Reopen the modal in Log In mode so a previous Sign Up selection cannot
+        // make an existing user accidentally try to create the account again.
+        setAuthMode(false);
         clearFieldError(authEmail, emailError);
         clearFieldError(authPassword, passwordError);
         authBanner.classList.add('hidden');
@@ -524,7 +527,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             closeAuthModal();
         } catch (err) {
-            authBanner.textContent = friendlyAuthError(err);
+            if (isSignUpMode && err.code === 'auth/email-already-in-use') {
+                // Keep the email and move straight to the existing account's login.
+                setAuthMode(false);
+                authEmail.value = email;
+                authPassword.value = '';
+                authBanner.textContent = 'This email already has an account. You are on Log In now—use the same sign-in method you used before.';
+            } else {
+                authBanner.textContent = friendlyAuthError(err);
+            }
             authBanner.classList.remove('hidden');
             authBanner.className = 'auth-banner error';
         } finally {
