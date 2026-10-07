@@ -81,6 +81,7 @@
                     <span class="rotation-tag hidden"><i class="fa-solid fa-rotate"></i></span>
                     <span class="expiry-tag hidden"><i class="fa-solid fa-clock"></i> <span class="expiry-text">--</span></span>
                 </div>
+                <p class="key-onetime-note hidden">This key was issued for one verified Linkvertise completion. Copy and save it now; the same completion link cannot issue it again.</p>
                 <div class="loadstring-box">
                     <label>Your Key:</label>
                     <div class="copy-input">
@@ -227,6 +228,7 @@
             const progressFill = node.querySelector('.key-progress-fill');
             const progressLabel = node.querySelector('.key-progress-label');
             const readyBlock = node.querySelector('.key-ready-block');
+            const oneTimeNote = node.querySelector('.key-onetime-note');
             const getKeyBtn = node.querySelector('.get-key-btn');
             const rotationTag = node.querySelector('.rotation-tag');
             const expiryTag = node.querySelector('.expiry-tag');
@@ -336,6 +338,7 @@
                 keyOutput.value = d.key;
                 loadstringOutput.value = buildLoadstring(vaultId, d.key);
                 openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(d.key)}`;
+                oneTimeNote.classList.toggle('hidden', !d.unique);
 
                 if (d.expiresAt) {
                     expiryTag.classList.remove('hidden');

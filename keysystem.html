@@ -41,6 +41,19 @@
                     </label>
                 </div>
 
+                <details class="ks-tutorial">
+                    <summary><i class="fa-solid fa-graduation-cap text-cyan"></i> Beginner guide — set up your key system</summary>
+                    <ol>
+                        <li><strong>Turn it on.</strong> Switch on <em>Enable Key System</em> to show the key settings.</li>
+                        <li><strong>Choose who gets keys.</strong> Add a Private Key for people you choose, or enable Public Key so visitors can request one from your Get-Key page.</li>
+                        <li><strong>Set the timer.</strong> Choose how long a key lasts and how many players may use it. Expired keys are rejected; the remaining time is shown in the in-game status badge.</li>
+                        <li><strong>Set up the in-game popup.</strong> Turn on <em>In-Game Key GUI</em> to ask players for a key in Roblox. Customize the title, colors, and button, then check the live preview. After a key verifies, VoidedX saves it locally when the executor supports file saving, and checks it automatically next run.</li>
+                        <li><strong>Optional Linkvertise.</strong> In the Get-Key Link tab, copy the Get-Key URL. Make that the destination of a Linkvertise Target Link with Anti-Bypass enabled. Save your Linkvertise token, paste the Linkvertise share URL into Ad-Gate Link, then Apply Changes.</li>
+                        <li><strong>Save your settings.</strong> Click <em>Apply Changes</em> after editing. Share the Get-Key URL with players who need a public key.</li>
+                    </ol>
+                    <p class="ks-tutorial-note">Saved keys stay in the player's executor files on that device. The server still checks each key and expiration. Expiration blocks future runs; it cannot stop a script that is already running.</p>
+                </details>
+
                 <div id="key-system-fields" class="hidden">
                     <div class="ks-tabs">
                         <button type="button" class="ks-tab active" data-tab="keys"><i class="fa-solid fa-key"></i> Keys <span id="keys-count-badge" class="keysystem-badge on hidden">0</span></button>
@@ -96,7 +109,7 @@
                                 </div>
                                 <p id="linkvertise-token-status" class="key-card-status">Verification token not saved.</p>
 
-                                <div class="key-toolbar">
+                                <div class="key-toolbar" id="public-key-actions">
                                     <span class="key-toolbar-label">ACTIONS</span>
                                     <div class="key-toolbar-buttons">
                                         <button type="button" id="public-regenerate-btn" class="key-tool-btn" title="Force Regenerate"><i class="fa-solid fa-rotate"></i></button>
@@ -159,6 +172,7 @@
                                             <div class="gui-preview-badge" id="gui-preview-badge">🔑</div>
                                             <strong id="gui-preview-title">VoidedX Key System</strong>
                                             <span id="gui-preview-subtitle">Enter your key to continue</span>
+                                            <small class="gui-preview-vault-name" id="gui-preview-vault-name">Vault: --</small>
                                             <div class="gui-preview-input">Enter key here...</div>
                                             <div class="gui-preview-button" id="gui-preview-button">Submit</div>
                                             <small>Need a key? Tap to copy the Get-Key link</small>

@@ -135,6 +135,15 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .keysystem-status p { margin: 0; }
 .linkvertise-help { margin-top: 4px; }
 #linkvertise-token-status { line-height: 1.45; }
+.ks-tutorial { width: 100%; padding: 14px 16px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+.ks-tutorial summary { color: var(--text-primary); font-weight: 800; cursor: pointer; list-style: none; }
+.ks-tutorial summary::-webkit-details-marker { display: none; }
+.ks-tutorial[open] summary { margin-bottom: 10px; }
+.ks-tutorial ol { display: flex; flex-direction: column; gap: 7px; padding-left: 22px; }
+.ks-tutorial li { padding-left: 2px; }
+.ks-tutorial li strong { color: var(--text-primary); }
+.ks-tutorial li em { color: var(--cyan); font-style: normal; }
+.ks-tutorial-note { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border-color); font-size: 11px; }
 .gui-customizer { display: flex; flex-direction: column; gap: 14px; padding: 14px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; }
 .gui-customizer-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .gui-setting { display: flex; flex-direction: column; gap: 6px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
@@ -148,6 +157,7 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .gui-preview-badge { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; font-size: 22px; }
 .gui-preview-card strong { font-size: 14px; }
 .gui-preview-card > span { font-size: 11px; opacity: .7; }
+.gui-preview-vault-name { color: var(--cyan); font-size: 10px !important; font-weight: 700; }
 .gui-preview-input { width: 100%; padding: 11px; border: 1px solid #33394b; border-radius: 8px; background: #161a24; color: #94a3b8; font: 11px Consolas, monospace; text-align: left; }
 .gui-preview-button { width: 100%; padding: 10px; border-radius: 8px; color: #fff; font-size: 12px; font-weight: 800; }
 .gui-preview-card small { color: #94a3b8; font-size: 9px; }
@@ -177,6 +187,7 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .key-progress-track { width: 100%; height: 8px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; }
 .key-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--cyan), var(--accent)); transition: width 0.15s ease; }
 .key-progress-label { font-size: 11.5px; color: var(--text-muted); }
+.key-onetime-note { color: var(--text-muted); font-size: 12px; line-height: 1.5; margin: 0 0 12px; }
 .key-open-link { margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #expiry-tag { color: var(--cyan); }
 

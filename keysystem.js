@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const linkvertiseTokenStatus = document.getElementById('linkvertise-token-status');
     const publicRegenerateBtn = document.getElementById('public-regenerate-btn');
     const publicTerminateBtn = document.getElementById('public-terminate-btn');
+    const publicKeyActions = document.getElementById('public-key-actions');
     const publicKeyStatus = document.getElementById('public-key-status');
     const chkGuiMode = document.getElementById('chk-gui-mode');
     const guiCustomizer = document.getElementById('gui-customizer');
@@ -131,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const guiPreviewBadge = document.getElementById('gui-preview-badge');
     const guiPreviewTitle = document.getElementById('gui-preview-title');
     const guiPreviewSubtitle = document.getElementById('gui-preview-subtitle');
+    const guiPreviewVaultName = document.getElementById('gui-preview-vault-name');
     const guiPreviewButton = document.getElementById('gui-preview-button');
     const chkIpLock = document.getElementById('chk-ip-lock');
     const ipLockStatus = document.getElementById('ip-lock-status');
@@ -472,6 +474,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderPublicKeyStatus(entry) {
         if (!chkPublicKey.checked) { publicKeyStatus.textContent = ''; return; }
+        if (publicAdGateInput.value.trim()) {
+            publicKeyActions.classList.add('hidden');
+            publicKeyStatus.textContent = 'With Ad-Gate enabled, each successfully verified Linkvertise completion issues a new random key. Reusing the same completion proof cannot issue another.';
+            return;
+        }
+        publicKeyActions.classList.remove('hidden');
         if (!entry) {
             publicKeyStatus.textContent = 'No key generated yet — the first visitor to use the Get-Key link creates one.';
             return;
@@ -667,6 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadLinkvertiseConfig();
             currentOwnerLegacy = data.uid === 'guest';
             ksVaultTitle.textContent = data.title || 'Untitled Vault';
+            guiPreviewVaultName.textContent = `Vault: ${ksVaultTitle.textContent}`;
 
             chkKeySystem.checked = !!data.requireKey;
             keySystemFields.classList.toggle('hidden', !data.requireKey);
