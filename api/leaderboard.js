@@ -2,7 +2,7 @@ import { db } from './_admin.js';
 
 function json(res, status, body) {
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
     return res.status(status).json(body);
 }
 
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     const month = today.slice(0, 7);
 
     try {
-        const [overallSnap, dailySnap, monthlySnap] = await Promise.all([
+        const [overallSnap, dailySnap, monthlySnap, todayActivitySnap, activeUsersSnap, activeVaultsSnap] = await Promise.all([
             db.collection('vaults')
                 .where('executions', '>', 0)
                 .orderBy('executions', 'desc')
@@ -46,14 +46,25 @@ export default async function handler(req, res) {
                 .where('executions', '>', 0)
                 .orderBy('executions', 'desc')
                 .limit(50)
-                .get()
+                .get(),
+            db.collection('siteActivityDaily').doc(today).get(),
+            db.collection('activeUsersDaily').doc(today).collection('players').count().get(),
+            db.collection('leaderboardDaily').doc(today).collection('vaults').count().get()
         ]);
+
+        const todayActivity = todayActivitySnap.exists ? todayActivitySnap.data() : {};
 
         return json(res, 200, {
             ok: true,
             today,
             month,
             timezone: 'UTC',
+            activity: {
+                activeUsersToday: Number(activeUsersSnap.data().count) || 0,
+                executionsToday: Number(todayActivity.executions) || 0,
+                activeVaultsToday: Number(activeVaultsSnap.data().count) || 0,
+                trackingDate: today
+            },
             rankings: {
                 overall: rows(overallSnap),
                 today: rows(dailySnap),

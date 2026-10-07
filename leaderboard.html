@@ -19,6 +19,16 @@
         .leaderboard-hero p { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin-top: 10px; max-width: 620px; }
         .leaderboard-refresh { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
         .leaderboard-highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
+        .leaderboard-activity { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 22px; }
+        .activity-stat { min-width: 0; position: relative; overflow: hidden; padding: 17px 18px; border: 1px solid var(--border-color); border-radius: 12px; background: linear-gradient(145deg, var(--bg-panel), var(--bg-surface)); }
+        .activity-stat::after { content: ""; position: absolute; width: 90px; height: 90px; right: -28px; top: -38px; border-radius: 50%; background: rgba(6,182,212,.07); }
+        .activity-stat-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+        .activity-stat-label { color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: .65px; text-transform: uppercase; }
+        .activity-stat-icon { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 9px; background: rgba(6,182,212,.1); color: var(--cyan); }
+        .activity-stat-value { display: block; color: var(--text-primary); font-size: 27px; line-height: 1; font-weight: 900; font-variant-numeric: tabular-nums; }
+        .activity-stat-detail { display: block; color: var(--text-muted); margin-top: 7px; font-size: 10px; }
+        .activity-live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #34d399; box-shadow: 0 0 10px rgba(52,211,153,.55); }
+        .activity-footnote { margin: -11px 2px 22px; color: var(--text-muted); font-size: 10px; line-height: 1.55; }
         .leaderboard-highlight { min-width: 0; background: linear-gradient(145deg, var(--bg-panel), var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; }
         .leaderboard-highlight-label { display: block; color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 9px; }
         .leaderboard-highlight-title { display: block; overflow: hidden; color: var(--text-primary); font-size: 14px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
@@ -54,6 +64,7 @@
         @media (max-width: 720px) {
             .leaderboard-hero { align-items: flex-start; flex-direction: column; }
             .leaderboard-highlights { grid-template-columns: 1fr; }
+            .leaderboard-activity { grid-template-columns: 1fr; }
             .leaderboard-highlight { padding: 13px 15px; }
             .leaderboard-nav .btn-ghost { padding: 8px 10px; font-size: 11px; }
         }
@@ -86,6 +97,25 @@
                 </div>
                 <button type="button" id="hero-refresh" class="btn-ghost leaderboard-refresh"><i class="fa-solid fa-rotate"></i> Refresh rankings</button>
             </section>
+
+            <section class="leaderboard-activity" aria-label="VoidedX usage today" aria-live="polite">
+                <article class="activity-stat">
+                    <div class="activity-stat-top"><span class="activity-stat-label"><span class="activity-live-dot"></span>Active users today</span><span class="activity-stat-icon"><i class="fa-solid fa-users"></i></span></div>
+                    <strong id="active-users-today" class="activity-stat-value">—</strong>
+                    <span class="activity-stat-detail">Unique player IDs seen by a successful loader</span>
+                </article>
+                <article class="activity-stat">
+                    <div class="activity-stat-top"><span class="activity-stat-label">Script loads today</span><span class="activity-stat-icon"><i class="fa-solid fa-play"></i></span></div>
+                    <strong id="executions-today" class="activity-stat-value">—</strong>
+                    <span class="activity-stat-detail">Vault code delivered after loader checks</span>
+                </article>
+                <article class="activity-stat">
+                    <div class="activity-stat-top"><span class="activity-stat-label">Vaults used today</span><span class="activity-stat-icon"><i class="fa-solid fa-vault"></i></span></div>
+                    <strong id="active-vaults-today" class="activity-stat-value">—</strong>
+                    <span class="activity-stat-detail">Different vaults with a successful run</span>
+                </article>
+            </section>
+            <p class="activity-footnote">“Active users” counts distinct Roblox UserIds reported by loader requests today. IDs are supplied by the client and are not independently verified, so this is a usage estimate—not proof of unique people. Load counts mean code was delivered after loader checks; they cannot confirm that code finished running in Roblox. Tracking starts after deployment, and older keyless loadstrings may need to be copied again to report a player ID.</p>
 
             <section class="leaderboard-highlights" aria-label="Top vault highlights">
                 <article class="leaderboard-highlight">
@@ -211,6 +241,9 @@
                 const result = await response.json();
                 if (!response.ok || !result.ok) throw new Error(result.message || 'Unable to load the leaderboard.');
                 board = result;
+                document.getElementById('active-users-today').textContent = numberFormat.format(Number(result.activity?.activeUsersToday) || 0);
+                document.getElementById('executions-today').textContent = numberFormat.format(Number(result.activity?.executionsToday) || 0);
+                document.getElementById('active-vaults-today').textContent = numberFormat.format(Number(result.activity?.activeVaultsToday) || 0);
                 setHighlight('overall', result.rankings.overall || []);
                 setHighlight('month', result.rankings.month || []);
                 setHighlight('today', result.rankings.today || []);

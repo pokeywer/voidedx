@@ -16,7 +16,7 @@ function isExecutorRequest(req) {
 }
 
 export default async function handler(req, res) {
-    const { id, key } = req.query;
+    const { id, key, userId } = req.query;
 
     if (!id) {
         return res.status(400).send('Error: Missing Vault ID');
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
 
         if (!vaultData.requireKey) {
             if (typeof vaultData.code === 'string' && vaultData.code.trim()) {
-                try { await recordExecution(db.collection('vaults').doc(String(id)), id, vaultData.title); } catch (e) {}
+                try { await recordExecution(db.collection('vaults').doc(String(id)), id, vaultData.title, userId); } catch (e) {}
             }
             return res.status(200).send(vaultData.code);
         }

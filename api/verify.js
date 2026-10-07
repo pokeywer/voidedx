@@ -181,11 +181,11 @@ export default async function handler(req, res) {
             if (!result.ok) {
                 return json(res, result.status || 403, { ok: false, message: result.message });
             }
-            try { await recordExecution(vaultRef, id, vault.title); } catch (e) {}
+            try { await recordExecution(vaultRef, id, vault.title, uidStr); } catch (e) {}
             return json(res, 200, { ok: true, code: result.code, remainingSeconds: result.remainingSeconds, expiresAt: result.expiresAt });
         }
 
-        try { await recordExecution(vaultRef, id, vault.title); } catch (e) {}
+        try { await recordExecution(vaultRef, id, vault.title, uidStr); } catch (e) {}
         return json(res, 200, { ok: true, code: vault.code, remainingSeconds: initialRemainingSeconds, expiresAt: initialExpiresAt });
     } catch (err) {
         return json(res, 500, { ok: false, message: 'Server error: ' + err.message });

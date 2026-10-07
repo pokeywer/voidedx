@@ -1,7 +1,8 @@
 import { db, FieldValue } from './_admin.js';
+import { createHmac } from 'node:crypto';
 
 // Dates use UTC so all visitors see the same daily and monthly cutoffs.
-export async function recordExecution(vaultRef, vaultId, rawTitle) {
+export async function recordExecution(vaultRef, vaultId, rawTitle, rawPlayerId = null) {
     const now = new Date();
     const dayKey = now.toISOString().slice(0, 10);
     const monthKey = dayKey.slice(0, 7);
@@ -21,5 +22,28 @@ export async function recordExecution(vaultRef, vaultId, rawTitle) {
         { vaultId: String(vaultId), title, executions: FieldValue.increment(1) },
         { merge: true }
     );
+
+    batch.set(
+        db.collection('siteActivityDaily').doc(dayKey),
+        { date: dayKey, executions: FieldValue.increment(1), updatedAt: now.getTime() },
+        { merge: true }
+    );
+
+    // Keep a per-day unique player marker for an honest active-user estimate.
+    // Only the server-side HMAC is stored; the submitted Roblox ID is discarded.
+    const playerId = String(rawPlayerId || '').trim();
+    const hashSecret = [
+        process.env.ACTIVE_USER_HASH_SECRET,
+        process.env.ADMIN_SESSION_SECRET,
+        process.env.FIREBASE_SERVICE_ACCOUNT
+    ].find(secret => typeof secret === 'string' && Buffer.byteLength(secret) >= 32) || '';
+    if (/^\d{1,20}$/.test(playerId) && hashSecret) {
+        const playerHash = createHmac('sha256', hashSecret).update(playerId).digest('hex');
+        batch.set(
+            db.collection('activeUsersDaily').doc(dayKey).collection('players').doc(playerHash),
+            { lastSeenAt: now.getTime() },
+            { merge: true }
+        );
+    }
     await batch.commit();
 }
