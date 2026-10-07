@@ -63,8 +63,9 @@
             <h3 class="key-page-card-title"><i class="fa-solid fa-key text-cyan"></i> <span class="key-page-label">Key</span></h3>
 
             <div class="adgate-step">
-                <p class="adgate-text">Complete the Linkvertise step. It will return you here automatically; VoidedX checks the one-time completion proof before starting the 15-second timer.</p>
+                <p class="adgate-text">Complete the Linkvertise step. It will return you here automatically; VoidedX checks the completion before starting the 15-second timer. If Linkvertise gets stuck, return here and a skip option appears after 60 seconds.</p>
                 <a class="btn-accent adgate-link" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Linkvertise</a>
+                <button type="button" class="btn-ghost adgate-bypass-btn hidden"><i class="fa-solid fa-forward"></i> Skip ad and continue</button>
             </div>
 
             <div class="key-generate-block idle-block">
@@ -223,12 +224,15 @@
             const adgateStep = node.querySelector('.adgate-step');
             const adgateText = node.querySelector('.adgate-text');
             const adgateLink = node.querySelector('.adgate-link');
+            const adgateBypassBtn = node.querySelector('.adgate-bypass-btn');
             const idleBlock = node.querySelector('.idle-block');
             const loadingBlock = node.querySelector('.loading-block');
             const progressFill = node.querySelector('.key-progress-fill');
             const progressLabel = node.querySelector('.key-progress-label');
             const readyBlock = node.querySelector('.key-ready-block');
             const oneTimeNote = node.querySelector('.key-onetime-note');
+            const fallbackStorageKey = `voidedx:adgate-started:${vaultId}`;
+            let fallbackTimeout = null;
             const getKeyBtn = node.querySelector('.get-key-btn');
             const rotationTag = node.querySelector('.rotation-tag');
             const expiryTag = node.querySelector('.expiry-tag');
@@ -263,7 +267,7 @@
                 }, 100);
             }
 
-            async function beginReveal() {
+            async function beginReveal(bypassAdGate = false) {
                 if (revealStarted) return;
                 revealStarted = true;
                 idleBlock.classList.add('hidden');
@@ -273,7 +277,8 @@
 
                 let startResp;
                 try {
-                    const r = await fetch(`/api/keypage?id=${encodeURIComponent(vaultId)}&action=start`);
+                    const bypassParam = bypassAdGate ? '&bypass=1' : '';
+                    const r = await fetch(`/api/keypage?id=${encodeURIComponent(vaultId)}&action=start${bypassParam}`);
                     startResp = await r.json();
                 } catch (e) { startResp = { ok: false }; }
 
@@ -286,6 +291,27 @@
                 }
 
                 runCountdown(startResp);
+            }
+
+            function clearFallbackMarker() {
+                if (fallbackTimeout) clearTimeout(fallbackTimeout);
+                fallbackTimeout = null;
+                adgateBypassBtn.classList.add('hidden');
+                try { localStorage.removeItem(fallbackStorageKey); } catch (e) {}
+            }
+
+            function scheduleFallbackButton() {
+                let startedAt = 0;
+                try { startedAt = Number(localStorage.getItem(fallbackStorageKey)) || 0; } catch (e) {}
+                if (!startedAt || Date.now() - startedAt > 60 * 60 * 1000) {
+                    try { localStorage.removeItem(fallbackStorageKey); } catch (e) {}
+                    return;
+                }
+                const delay = Math.max(0, 60 * 1000 - (Date.now() - startedAt));
+                if (fallbackTimeout) clearTimeout(fallbackTimeout);
+                fallbackTimeout = setTimeout(() => {
+                    if (!revealStarted) adgateBypassBtn.classList.remove('hidden');
+                }, delay);
             }
 
             async function verifyLinkvertiseReturn(hash) {
@@ -315,6 +341,7 @@
                     return;
                 }
 
+                clearFallbackMarker();
                 runCountdown(verifyResp);
             }
 
@@ -338,7 +365,13 @@
                 keyOutput.value = d.key;
                 loadstringOutput.value = buildLoadstring(vaultId, d.key);
                 openVaultLink.href = `/vault.html?id=${encodeURIComponent(vaultId)}&key=${encodeURIComponent(d.key)}`;
+                if (d.bypassed) clearFallbackMarker();
                 oneTimeNote.classList.toggle('hidden', !d.unique);
+                if (d.bypassed) {
+                    oneTimeNote.textContent = 'This fallback key was issued without a confirmed Linkvertise completion. Copy and save it now; this fallback request cannot issue another key.';
+                } else {
+                    oneTimeNote.textContent = 'This key was issued for one verified Linkvertise completion. Copy and save it now; the same completion cannot issue it again.';
+                }
 
                 if (d.expiresAt) {
                     expiryTag.classList.remove('hidden');
@@ -355,6 +388,12 @@
                 idleBlock.classList.add('hidden');
                 if (keyDef.linkvertiseConfigured) {
                     adgateLink.href = keyDef.adGateUrl;
+                    adgateLink.addEventListener('click', () => {
+                        try { localStorage.setItem(fallbackStorageKey, String(Date.now())); } catch (e) {}
+                        scheduleFallbackButton();
+                    });
+                    adgateBypassBtn.addEventListener('click', () => beginReveal(true));
+                    scheduleFallbackButton();
                 } else {
                     adgateLink.classList.add('hidden');
                     adgateText.textContent = 'The owner has not finished setting up Linkvertise verification yet. Please contact them.';

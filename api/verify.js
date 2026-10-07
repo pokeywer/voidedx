@@ -18,6 +18,24 @@ function getVaultKeys(vaultData) {
     return [];
 }
 
+function keyExpiresAt(key) {
+    if (!key || !key.durationDays || !key.keyGeneratedAt) return null;
+    const generatedAt = typeof key.keyGeneratedAt === 'number'
+        ? key.keyGeneratedAt
+        : key.keyGeneratedAt && typeof key.keyGeneratedAt.toMillis === 'function'
+            ? key.keyGeneratedAt.toMillis()
+            : Number.NaN;
+    const durationDays = Number(key.durationDays);
+    if (!Number.isFinite(generatedAt) || !Number.isFinite(durationDays) || durationDays <= 0) return null;
+    return generatedAt + durationDays * 86400000;
+}
+
+function remainingKeySeconds(key) {
+    const expiresAt = keyExpiresAt(key);
+    if (expiresAt == null) return null;
+    return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+}
+
 function getClientIp(req) {
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) return forwarded.split(',')[0].trim();
@@ -60,7 +78,18 @@ export default async function handler(req, res) {
         }
 
         const keysList = getVaultKeys(vault);
-        const matched = keysList.find(k => k.key === key);
+        let matched = keysList.find(k => k.key === key);
+        let issuedKeyRef = null;
+
+        // Linkvertise completions receive individual keys stored outside the
+        // main vault document, so look them up when no managed key matches.
+        if (!matched) {
+            const issuedSnap = await vaultRef.collection('issuedKeys').where('key', '==', key).limit(1).get();
+            if (!issuedSnap.empty) {
+                issuedKeyRef = issuedSnap.docs[0].ref;
+                matched = issuedSnap.docs[0].data();
+            }
+        }
 
         if (!matched) {
             return json(res, 403, { ok: false, message: 'Invalid key.' });
@@ -68,12 +97,12 @@ export default async function handler(req, res) {
         if (matched.terminated) {
             return json(res, 403, { ok: false, message: 'This key has been terminated by the owner.' });
         }
-        if (matched.durationDays) {
-            const expiresAt = (matched.keyGeneratedAt || 0) + matched.durationDays * 86400000;
-            if (Date.now() > expiresAt) {
-                return json(res, 403, { ok: false, message: 'This key has expired.' });
-            }
+        const matchedExpiresAt = keyExpiresAt(matched);
+        if (matchedExpiresAt != null && Date.now() >= matchedExpiresAt) {
+            return json(res, 403, { ok: false, message: 'This key has expired.' });
         }
+        const initialRemainingSeconds = remainingKeySeconds(matched);
+        const initialExpiresAt = matchedExpiresAt;
 
         // IP lock — vault-wide, atomic so two IPs can't both "win" the bind.
         if (vault.ipLock) {
@@ -102,18 +131,32 @@ export default async function handler(req, res) {
         if (uidStr) {
             const result = await db.runTransaction(async (tx) => {
                 const freshSnap = await tx.get(vaultRef);
-                if (!freshSnap.exists) return { ok: true, code: vault.code };
+                if (!freshSnap.exists) return { ok: true, code: vault.code, remainingSeconds: initialRemainingSeconds, expiresAt: initialExpiresAt };
                 const freshData = freshSnap.data();
-                const freshKeys = getVaultKeys(freshData);
-                const idx = freshKeys.findIndex(k => k.key === key);
-                if (idx === -1) return { ok: false, status: 403, message: 'Invalid key.' };
-
-                const fk = freshKeys[idx];
+                let freshKeys = null;
+                let idx = -1;
+                let fk;
+                let issuedSnap = null;
+                if (issuedKeyRef) {
+                    issuedSnap = await tx.get(issuedKeyRef);
+                    if (issuedSnap.exists && issuedSnap.data().key === key) fk = issuedSnap.data();
+                } else {
+                    freshKeys = getVaultKeys(freshData);
+                    idx = freshKeys.findIndex(k => k.key === key);
+                    if (idx !== -1) fk = freshKeys[idx];
+                }
+                if (!fk) return { ok: false, status: 403, message: 'Invalid key.' };
+                if (fk.terminated) return { ok: false, status: 403, message: 'This key has been terminated by the owner.' };
+                const freshExpiresAt = keyExpiresAt(fk);
+                if (freshExpiresAt != null && Date.now() >= freshExpiresAt) {
+                    return { ok: false, status: 403, message: 'This key has expired.' };
+                }
+                const remainingSeconds = remainingKeySeconds(fk);
                 const boundUsers = Array.isArray(fk.boundUsers) ? fk.boundUsers : [];
                 const existing = boundUsers.find(u => String(u.userId) === uidStr);
 
                 if (existing) {
-                    return { ok: true, code: freshData.code };
+                    return { ok: true, code: freshData.code, remainingSeconds, expiresAt: freshExpiresAt };
                 }
                 if (!fk.maxUsersUnlimited && boundUsers.length >= (fk.maxUsers || 1)) {
                     return {
@@ -123,23 +166,27 @@ export default async function handler(req, res) {
                 }
 
                 const updatedUsers = [...boundUsers, { userId: uidStr, username: username || 'Unknown', boundAt: Date.now() }];
-                const updatedKeys = [...freshKeys];
-                updatedKeys[idx] = { ...fk, boundUsers: updatedUsers };
+                if (issuedKeyRef) {
+                    tx.update(issuedKeyRef, { boundUsers: updatedUsers });
+                } else {
+                    const updatedKeys = [...freshKeys];
+                    updatedKeys[idx] = { ...fk, boundUsers: updatedUsers };
 
-                // Only write back through the modern `keys` array shape.
-                if (Array.isArray(freshData.keys) && freshData.keys.length > 0) {
-                    tx.update(vaultRef, { keys: updatedKeys });
+                    // Only write back through the modern `keys` array shape.
+                    if (Array.isArray(freshData.keys) && freshData.keys.length > 0) {
+                        tx.update(vaultRef, { keys: updatedKeys });
+                    }
                 }
-                return { ok: true, code: freshData.code };
+                return { ok: true, code: freshData.code, remainingSeconds, expiresAt: freshExpiresAt };
             });
 
             if (!result.ok) {
                 return json(res, result.status || 403, { ok: false, message: result.message });
             }
-            return json(res, 200, { ok: true, code: result.code });
+            return json(res, 200, { ok: true, code: result.code, remainingSeconds: result.remainingSeconds, expiresAt: result.expiresAt });
         }
 
-        return json(res, 200, { ok: true, code: vault.code });
+        return json(res, 200, { ok: true, code: vault.code, remainingSeconds: initialRemainingSeconds, expiresAt: initialExpiresAt });
     } catch (err) {
         return json(res, 500, { ok: false, message: 'Server error: ' + err.message });
     }

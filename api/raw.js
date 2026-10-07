@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         if (vaultData.requireKey && vaultData.guiMode) {
             res.setHeader('Content-Type', 'text/plain');
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            return res.status(200).send(buildGuiLoader(id, getOrigin(req), vaultData.guiAppearance));
+            return res.status(200).send(buildGuiLoader(id, getOrigin(req), vaultData.guiAppearance, vaultData.title));
         }
 
         res.setHeader('Content-Type', 'text/plain');
@@ -110,10 +110,14 @@ function getOrigin(req) {
     return `${proto}://${host}`;
 }
 
-function buildGuiLoader(id, origin, rawAppearance = {}) {
+function buildGuiLoader(id, origin, rawAppearance = {}, rawVaultName = '') {
     const verifyBase = `${origin}/api/verify`;
     const keyPageUrl = `${origin}/key.html?id=${id}`;
     const appearance = sanitizeGuiAppearance(rawAppearance);
+    const vaultName = typeof rawVaultName === 'string'
+        ? rawVaultName.replace(/[\r\n\t\x00-\x1f\x7f]/g, ' ').trim().slice(0, 64) || `Vault ${id}`
+        : `Vault ${id}`;
+    const savedKeyFile = `VoidedX_Key_${String(id).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)}.txt`;
     const toRgb = hex => hex.match(/[a-f\d]{2}/gi).map(part => parseInt(part, 16));
     const [bgR, bgG, bgB] = toRgb(appearance.backgroundColor);
     const [accentR, accentG, accentB] = toRgb(appearance.accentColor);
@@ -123,6 +127,30 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
+local savedKeyPath = ${luaString(savedKeyFile)}
+
+local function readSavedKey()
+    if type(readfile) ~= "function" then return nil end
+    local ok, value = pcall(function()
+        if type(isfile) == "function" and not isfile(savedKeyPath) then return nil end
+        return readfile(savedKeyPath)
+    end)
+    if ok and type(value) == "string" and value ~= "" then return value end
+    return nil
+end
+
+local function saveKeyLocally(key)
+    if type(writefile) ~= "function" then return false end
+    return pcall(function() writefile(savedKeyPath, key) end)
+end
+
+local function clearSavedKey()
+    if type(delfile) == "function" then
+        pcall(function() delfile(savedKeyPath) end)
+    elseif type(writefile) == "function" then
+        pcall(function() writefile(savedKeyPath, "") end)
+    end
+end
 
 local function getGuiParent()
     local ok, hui = pcall(function() return gethui() end)
@@ -131,6 +159,12 @@ local function getGuiParent()
     if ok2 and cg then return cg end
     return player:WaitForChild("PlayerGui")
 end
+
+local guiParent = getGuiParent()
+local oldStatusGui = guiParent:FindFirstChild("VoidedXKeyStatus")
+if oldStatusGui then oldStatusGui:Destroy() end
+local oldKeyGui = guiParent:FindFirstChild("VoidedXKeySystem")
+if oldKeyGui then oldKeyGui:Destroy() end
 
 local COL_BG = Color3.fromRGB(${bgR}, ${bgG}, ${bgB})
 local COL_INPUT = Color3.fromRGB(22, 26, 36)
@@ -151,7 +185,7 @@ screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.DisplayOrder = 999
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = getGuiParent()
+screenGui.Parent = guiParent
 
 local overlay = Instance.new("Frame")
 overlay.Size = UDim2.fromScale(1, 1)
@@ -275,6 +309,17 @@ subtitle.TextScaled = true
 subtitle.LayoutOrder = 3
 subtitle.Parent = content
 
+local vaultNameLabel = Instance.new("TextLabel")
+vaultNameLabel.Size = UDim2.new(1, 0, 0, 18)
+vaultNameLabel.BackgroundTransparency = 1
+vaultNameLabel.Text = ${luaString(`Vault: ${vaultName}`)}
+vaultNameLabel.TextColor3 = COL_CYAN
+vaultNameLabel.Font = Enum.Font.GothamSemibold
+vaultNameLabel.TextScaled = true
+vaultNameLabel.TextWrapped = true
+vaultNameLabel.LayoutOrder = 4
+vaultNameLabel.Parent = content
+
 local inputBox = Instance.new("TextBox")
 inputBox.Size = UDim2.new(1, 0, 0, 42)
 inputBox.BackgroundColor3 = COL_INPUT
@@ -285,7 +330,7 @@ inputBox.Text = ""
 inputBox.ClearTextOnFocus = false
 inputBox.Font = Enum.Font.Code
 inputBox.TextScaled = true
-inputBox.LayoutOrder = 4
+inputBox.LayoutOrder = 5
 inputBox.Parent = content
 local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 9)
@@ -314,7 +359,7 @@ submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Font = Enum.Font.GothamBold
 submitBtn.TextScaled = true
 submitBtn.AutoButtonColor = false
-submitBtn.LayoutOrder = 5
+submitBtn.LayoutOrder = 6
 submitBtn.Parent = content
 local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 9)
@@ -347,7 +392,7 @@ statusLabel.TextColor3 = COL_RED
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.TextScaled = true
 statusLabel.TextTransparency = 1
-statusLabel.LayoutOrder = 6
+statusLabel.LayoutOrder = 7
 statusLabel.Parent = content
 
 local getKeyBtn = Instance.new("TextButton")
@@ -357,13 +402,135 @@ getKeyBtn.Text = "Need a key? Tap to copy the Get-Key link"
 getKeyBtn.TextColor3 = COL_MUTED
 getKeyBtn.Font = Enum.Font.Gotham
 getKeyBtn.TextScaled = true
-getKeyBtn.LayoutOrder = 7
+getKeyBtn.LayoutOrder = 8
 getKeyBtn.Parent = content
 
 local function setStatus(text, color)
     statusLabel.Text = text
     statusLabel.TextColor3 = color
     statusLabel.TextTransparency = 0
+end
+
+local function formatKeyTime(seconds)
+    seconds = math.max(0, math.floor(seconds))
+    local days = math.floor(seconds / 86400)
+    local hours = math.floor((seconds % 86400) / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    if days > 0 then return string.format("%dd %dh", days, hours) end
+    if hours > 0 then return string.format("%dh %dm", hours, minutes) end
+    if seconds < 60 then return string.format("%ds", seconds) end
+    return string.format("%dm", minutes)
+end
+
+local function formatExpiryDate(expiresAtMs)
+    local ok, value = pcall(function()
+        return os.date("!%Y-%m-%d %H:%M UTC", math.floor(expiresAtMs / 1000))
+    end)
+    if ok and type(value) == "string" then return value end
+    return "date unavailable"
+end
+
+local function showKeyTimer(remainingSeconds, fileSaved, expiresAtMs)
+    screenGui.Name = "VoidedXKeyStatus"
+
+    local panel = Instance.new("Frame")
+    panel.AnchorPoint = Vector2.new(1, 1)
+    panel.Position = UDim2.new(1, -14, 1, -14)
+    panel.Size = UDim2.new(0, 310, 0, 78)
+    panel.BackgroundColor3 = COL_BG
+    panel.BackgroundTransparency = 0.08
+    panel.BorderSizePixel = 0
+    panel.Parent = screenGui
+    local panelCorner = Instance.new("UICorner")
+    panelCorner.CornerRadius = UDim.new(0, 10)
+    panelCorner.Parent = panel
+    local panelStroke = Instance.new("UIStroke")
+    panelStroke.Color = COL_CYAN
+    panelStroke.Transparency = 0.35
+    panelStroke.Parent = panel
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Position = UDim2.new(0, 11, 0, 6)
+    nameLabel.Size = UDim2.new(1, -38, 0, 17)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = ${luaString(vaultName)}
+    nameLabel.TextColor3 = COL_TEXT
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 11
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    nameLabel.Parent = panel
+
+    local timerLabel = Instance.new("TextLabel")
+    timerLabel.Position = UDim2.new(0, 11, 0, 25)
+    timerLabel.Size = UDim2.new(1, -24, 0, 16)
+    timerLabel.BackgroundTransparency = 1
+    timerLabel.TextColor3 = COL_CYAN
+    timerLabel.Font = Enum.Font.Gotham
+    timerLabel.TextSize = 10
+    timerLabel.TextXAlignment = Enum.TextXAlignment.Left
+    timerLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    timerLabel.Parent = panel
+
+    local expiryLabel = Instance.new("TextLabel")
+    expiryLabel.Position = UDim2.new(0, 11, 0, 42)
+    expiryLabel.Size = UDim2.new(1, -22, 0, 14)
+    expiryLabel.BackgroundTransparency = 1
+    expiryLabel.TextColor3 = COL_MUTED
+    expiryLabel.Font = Enum.Font.Gotham
+    expiryLabel.TextSize = 9
+    expiryLabel.TextXAlignment = Enum.TextXAlignment.Left
+    expiryLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    expiryLabel.Parent = panel
+
+    local fileLabel = Instance.new("TextLabel")
+    fileLabel.Position = UDim2.new(0, 11, 0, 57)
+    fileLabel.Size = UDim2.new(1, -22, 0, 14)
+    fileLabel.BackgroundTransparency = 1
+    fileLabel.TextColor3 = COL_MUTED
+    fileLabel.Font = Enum.Font.Gotham
+    fileLabel.TextSize = 9
+    fileLabel.TextXAlignment = Enum.TextXAlignment.Left
+    fileLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    fileLabel.Parent = panel
+
+    expiryLabel.Text = type(expiresAtMs) == "number"
+        and ("Expires: " .. formatExpiryDate(expiresAtMs))
+        or "Expiry: Permanent"
+    fileLabel.Text = fileSaved
+        and ("Executor save file: " .. savedKeyPath)
+        or "Save file unavailable (executor has no writefile support)"
+
+    local closeButton = Instance.new("TextButton")
+    closeButton.Position = UDim2.new(1, -27, 0, 5)
+    closeButton.Size = UDim2.new(0, 22, 0, 22)
+    closeButton.BackgroundTransparency = 1
+    closeButton.Text = "×"
+    closeButton.TextColor3 = COL_MUTED
+    closeButton.TextSize = 18
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.Parent = panel
+    closeButton.MouseButton1Click:Connect(function() screenGui:Destroy() end)
+
+    if type(remainingSeconds) ~= "number" then
+        timerLabel.Text = "Key is permanent"
+        return
+    end
+
+    local secondsLeft = math.max(0, math.floor(remainingSeconds))
+    task.spawn(function()
+        while panel.Parent and secondsLeft > 0 do
+            timerLabel.Text = "Key expires in " .. formatKeyTime(secondsLeft)
+            task.wait(1)
+            secondsLeft -= 1
+        end
+        if panel.Parent then
+            clearSavedKey()
+            timerLabel.Text = "Key expired · get a new key to run again"
+            timerLabel.TextColor3 = COL_RED
+            if fileSaved then fileLabel.Text = "Executor save file cleared after expiry" end
+        end
+    end)
 end
 
 local function shakeCard()
@@ -407,7 +574,7 @@ local function animateDots(label, baseText)
     end)
 end
 
-local function attemptVerify()
+local function attemptVerify(fromSavedKey)
     if verifying then return end
     local typedKey = inputBox.Text
     if typedKey == "" then
@@ -447,12 +614,28 @@ local function attemptVerify()
     end
 
     if not result.ok then
-        setStatus(tostring(result.message or "Invalid key."), COL_RED)
+        local failureMessage = tostring(result.message or "Invalid key.")
+        if fromSavedKey then
+            local lowerMessage = string.lower(failureMessage)
+            local keyNeedsRenewal = string.find(lowerMessage, "invalid key", 1, true)
+                or string.find(lowerMessage, "expired", 1, true)
+                or string.find(lowerMessage, "terminated", 1, true)
+            if keyNeedsRenewal then
+                clearSavedKey()
+                inputBox.Text = ""
+                setStatus("Saved key expired or changed. Enter your current key.", COL_RED)
+            else
+                setStatus(failureMessage, COL_RED)
+            end
+        else
+            setStatus(failureMessage, COL_RED)
+        end
         shakeCard()
         return
     end
 
-    setStatus("Key verified!", COL_GREEN)
+    local fileSaved = saveKeyLocally(typedKey)
+    setStatus(fileSaved and "Key verified · saved on this device." or "Key verified · local file saving unavailable.", COL_GREEN)
     submitBtn.Text = "Success"
     submitBtn.BackgroundColor3 = COL_GREEN
     badgeGradient.Color = ColorSequence.new(COL_GREEN, COL_CYAN)
@@ -464,7 +647,9 @@ local function attemptVerify()
     TweenService:Create(overlay, TweenInfo.new(0.3, EASE_OUT), { BackgroundTransparency = 1 }):Play()
     task.wait(0.25)
 
-    screenGui:Destroy()
+    card:Destroy()
+    overlay:Destroy()
+    showKeyTimer(result.remainingSeconds, fileSaved, result.expiresAt)
     loadstring(result.code)()
 end
 
@@ -472,6 +657,13 @@ submitBtn.MouseButton1Click:Connect(attemptVerify)
 inputBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then attemptVerify() end
 end)
+
+local previouslySavedKey = readSavedKey()
+if previouslySavedKey then
+    inputBox.Text = previouslySavedKey
+    setStatus("Checking the saved key...", COL_MUTED)
+    task.defer(function() attemptVerify(true) end)
+end
 `.trim();
 }
 
