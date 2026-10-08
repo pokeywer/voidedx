@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const guiBackgroundColor = document.getElementById('gui-background-color');
     const guiTextColor = document.getElementById('gui-text-color');
     const guiPreviewCard = document.getElementById('gui-preview-card');
+    const guiPreviewScreen = document.getElementById('gui-preview-screen');
     const guiPreviewAccent = document.getElementById('gui-preview-accent');
     const guiPreviewBadge = document.getElementById('gui-preview-badge');
     const guiPreviewTitle = document.getElementById('gui-preview-title');
@@ -139,6 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const guiPreviewVaultName = document.getElementById('gui-preview-vault-name');
     const guiPreviewInput = document.getElementById('gui-preview-input');
     const guiPreviewButton = document.getElementById('gui-preview-button');
+    const guiPreviewButtonText = document.getElementById('gui-preview-button-text');
+    const guiPreviewGetKey = document.getElementById('gui-preview-getkey');
+    const guiPreviewClose = document.getElementById('gui-preview-close');
+    const guiPreviewStatus = document.getElementById('gui-preview-status');
+    const guiPreviewTimer = document.getElementById('gui-preview-timer');
+    const guiPreviewClosed = document.getElementById('gui-preview-closed');
+    const guiPreviewToggle = document.getElementById('gui-preview-toggle');
     const chkIpLock = document.getElementById('chk-ip-lock');
     const ipLockStatus = document.getElementById('ip-lock-status');
     const ipLockStatusText = document.getElementById('ip-lock-status-text');
@@ -228,6 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedGuiTemplate = template.id;
                 renderGuiTemplateGallery();
                 renderGuiPreview();
+                resetGuiPreview();
             });
             guiTemplateGrid.appendChild(button);
         });
@@ -245,6 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         guiPreviewCard.style.backgroundColor = guiBackgroundColor.value || defaultGuiAppearance.backgroundColor;
         guiPreviewCard.style.color = guiTextColor.value || defaultGuiAppearance.textColor;
         guiPreviewCard.style.borderColor = `${accent}66`;
+        guiPreviewCard.style.setProperty('--template-accent', accent);
         guiPreviewAccent.style.background = `linear-gradient(90deg, ${accent}, ${glow})`;
         guiPreviewBadge.style.background = gradient;
         guiPreviewButton.style.background = gradient;
@@ -256,8 +266,111 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         guiPreviewTitle.textContent = guiTitleInput.value.trim() || defaultGuiAppearance.title;
         guiPreviewSubtitle.textContent = guiSubtitleInput.value.trim() || defaultGuiAppearance.subtitle;
-        guiPreviewButton.textContent = guiButtonInput.value.trim() || defaultGuiAppearance.buttonLabel;
+        guiPreviewButtonText.textContent = guiButtonInput.value.trim() || defaultGuiAppearance.buttonLabel;
     }
+
+    let guiPreviewRun = 0;
+    let guiPreviewTimeout;
+
+    function resetGuiPreview() {
+        guiPreviewRun++;
+        clearTimeout(guiPreviewTimeout);
+        guiPreviewScreen.classList.remove('is-closed');
+        guiPreviewCard.classList.remove('is-hidden', 'is-entering', 'is-unlocking', 'is-success');
+        guiPreviewTimer.classList.add('hidden');
+        guiPreviewTimer.classList.remove('is-active');
+        guiPreviewClosed.classList.add('hidden');
+        guiPreviewStatus.textContent = '';
+        guiPreviewStatus.className = 'gui-preview-status';
+        guiPreviewButton.classList.remove('is-loading', 'is-success');
+        guiPreviewButton.disabled = false;
+        guiPreviewGetKey.classList.remove('is-pulse');
+        guiPreviewButtonText.textContent = guiButtonInput.value.trim() || defaultGuiAppearance.buttonLabel;
+        guiPreviewToggle.innerHTML = '<i class="fa-solid fa-xmark"></i> Close popup';
+    }
+
+    function playGuiPreviewEntrance() {
+        resetGuiPreview();
+        void guiPreviewCard.offsetWidth;
+        guiPreviewCard.classList.add('is-entering');
+    }
+
+    function closeGuiPreview() {
+        guiPreviewRun++;
+        clearTimeout(guiPreviewTimeout);
+        guiPreviewCard.classList.remove('is-entering', 'is-unlocking');
+        guiPreviewCard.classList.add('is-hidden');
+        guiPreviewButton.classList.remove('is-loading');
+        guiPreviewButton.disabled = false;
+        guiPreviewScreen.classList.add('is-closed');
+        guiPreviewClosed.classList.remove('hidden');
+        guiPreviewTimer.classList.add('hidden');
+        guiPreviewToggle.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i> Open popup';
+    }
+
+    function setGuiPreviewStatus(message, state) {
+        guiPreviewStatus.textContent = message;
+        guiPreviewStatus.className = `gui-preview-status visible is-${state}`;
+    }
+
+    function showGuiPreviewKeyHint() {
+        if (guiPreviewCard.classList.contains('is-hidden')) playGuiPreviewEntrance();
+        guiPreviewRun++;
+        clearTimeout(guiPreviewTimeout);
+        guiPreviewButton.disabled = false;
+        guiPreviewButton.classList.remove('is-loading', 'is-success');
+        guiPreviewButtonText.textContent = guiButtonInput.value.trim() || defaultGuiAppearance.buttonLabel;
+        guiPreviewGetKey.classList.remove('is-pulse');
+        void guiPreviewGetKey.offsetWidth;
+        guiPreviewGetKey.classList.add('is-pulse');
+        setGuiPreviewStatus('Get-Key link copied — paste it into your browser.', 'success');
+        guiPreviewTimeout = setTimeout(() => guiPreviewGetKey.classList.remove('is-pulse'), 700);
+    }
+
+    function simulateGuiPreviewUnlock() {
+        if (guiPreviewCard.classList.contains('is-hidden')) playGuiPreviewEntrance();
+        guiPreviewRun++;
+        const run = guiPreviewRun;
+        clearTimeout(guiPreviewTimeout);
+        guiPreviewStatus.textContent = '';
+        guiPreviewStatus.className = 'gui-preview-status';
+        guiPreviewButton.disabled = true;
+        guiPreviewButton.classList.add('is-loading');
+        guiPreviewButton.classList.remove('is-success');
+        guiPreviewButtonText.textContent = 'CHECKING KEY';
+        guiPreviewTimeout = setTimeout(() => {
+            if (run !== guiPreviewRun) return;
+            guiPreviewButton.classList.remove('is-loading');
+            guiPreviewButton.classList.add('is-success');
+            guiPreviewButtonText.textContent = 'UNLOCKED';
+            guiPreviewStatus.className = 'gui-preview-status';
+            guiPreviewStatus.textContent = '';
+            guiPreviewCard.classList.add('is-success');
+            guiPreviewTimeout = setTimeout(() => {
+                if (run !== guiPreviewRun) return;
+                guiPreviewCard.classList.add('is-hidden');
+                guiPreviewTimer.classList.remove('hidden');
+                requestAnimationFrame(() => guiPreviewTimer.classList.add('is-active'));
+            }, 420);
+        }, 850);
+    }
+
+    guiPreviewButton.addEventListener('click', simulateGuiPreviewUnlock);
+    guiPreviewGetKey.addEventListener('click', showGuiPreviewKeyHint);
+    guiPreviewClose.addEventListener('click', closeGuiPreview);
+    guiPreviewClosed.addEventListener('click', playGuiPreviewEntrance);
+    document.querySelectorAll('[data-gui-preview-action]').forEach(button => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.guiPreviewAction;
+            if (action === 'entrance') playGuiPreviewEntrance();
+            if (action === 'unlock') simulateGuiPreviewUnlock();
+            if (action === 'getkey') showGuiPreviewKeyHint();
+            if (action === 'toggle') {
+                if (guiPreviewCard.classList.contains('is-hidden')) playGuiPreviewEntrance();
+                else closeGuiPreview();
+            }
+        });
+    });
 
     function markGuiAppearanceCustom() {
         selectedGuiTemplate = 'custom';
@@ -269,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         renderGuiPreview();
+        resetGuiPreview();
     }
 
     function setGuiCustomizerVisible() {

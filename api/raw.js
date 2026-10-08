@@ -211,7 +211,7 @@ TweenService:Create(overlay, TweenInfo.new(0.35, EASE_OUT), { BackgroundTranspar
 local card = Instance.new("Frame")
 card.AnchorPoint = Vector2.new(0.5, 0.5)
 card.Position = UDim2.new(0.5, 0, 0.5, 0)
-card.Size = UDim2.new(0.86, 0, 0, 0)
+card.Size = UDim2.new(0.9, 0, 0, 0)
 card.AutomaticSize = Enum.AutomaticSize.Y
 card.BackgroundColor3 = COL_BG
 card.BorderSizePixel = 0
@@ -220,11 +220,11 @@ card.ZIndex = 2
 card.Parent = screenGui
 
 local cardConstraint = Instance.new("UISizeConstraint")
-cardConstraint.MaxSize = Vector2.new(360, 10000)
+cardConstraint.MaxSize = Vector2.new(410, 10000)
 cardConstraint.Parent = card
 
 local cardCorner = Instance.new("UICorner")
-cardCorner.CornerRadius = UDim.new(0, 16)
+cardCorner.CornerRadius = UDim.new(0, 20)
 cardCorner.Parent = card
 
 local cardStroke = Instance.new("UIStroke")
@@ -251,7 +251,7 @@ TweenService:Create(cardStroke, TweenInfo.new(0.38, EASE_OUT), { Transparency = 
 
 local closeButton = Instance.new("TextButton")
 closeButton.AnchorPoint = Vector2.new(1, 0)
-closeButton.Position = UDim2.new(1, -10, 0, 12)
+closeButton.Position = UDim2.new(1, -12, 0, 14)
 closeButton.Size = UDim2.new(0, 28, 0, 28)
 closeButton.BackgroundColor3 = COL_INPUT
 closeButton.BackgroundTransparency = 0.1
@@ -280,8 +280,12 @@ closeButton.MouseLeave:Connect(function()
     TweenService:Create(closeStroke, TweenInfo.new(0.14, EASE_OUT), { Color = COL_BORDER }):Play()
 end)
 closeButton.Activated:Connect(function()
+    closeButton.Active = false
     TweenService:Create(uiScale, TweenInfo.new(0.18, EASE_OUT), { Scale = 0.94 }):Play()
-    TweenService:Create(card, TweenInfo.new(0.18, EASE_OUT), { BackgroundTransparency = 1 }):Play()
+    TweenService:Create(card, TweenInfo.new(0.22, EASE_OUT), {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.5, 0, 0.5, 14)
+    }):Play()
     TweenService:Create(cardStroke, TweenInfo.new(0.16, EASE_OUT), { Transparency = 1 }):Play()
     TweenService:Create(overlay, TweenInfo.new(0.2, EASE_OUT), { BackgroundTransparency = 1 }):Play()
     task.wait(0.2)
@@ -289,7 +293,7 @@ closeButton.Activated:Connect(function()
 end)
 
 local accentBar = Instance.new("Frame")
-accentBar.Size = UDim2.new(1, 0, 0, 4)
+accentBar.Size = UDim2.new(1, 0, 0, 3)
 accentBar.BorderSizePixel = 0
 accentBar.ZIndex = 3
 accentBar.Parent = card
@@ -321,14 +325,14 @@ TweenService:Create(content, TweenInfo.new(0.38, EASE_OUT, Enum.EasingDirection.
 }):Play()
 
 local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 24)
-padding.PaddingBottom = UDim.new(0, 20)
-padding.PaddingLeft = UDim.new(0, 18)
-padding.PaddingRight = UDim.new(0, 18)
+padding.PaddingTop = UDim.new(0, 20)
+padding.PaddingBottom = UDim.new(0, 17)
+padding.PaddingLeft = UDim.new(0, 20)
+padding.PaddingRight = UDim.new(0, 20)
 padding.Parent = content
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 11)
+layout.Padding = UDim.new(0, 9)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = content
@@ -400,7 +404,7 @@ vaultNameLabel.LayoutOrder = 5
 vaultNameLabel.Parent = content
 
 local inputBox = Instance.new("TextBox")
-inputBox.Size = UDim2.new(1, 0, 0, 42)
+inputBox.Size = UDim2.new(1, 0, 0, 44)
 inputBox.BackgroundColor3 = COL_INPUT
 inputBox.TextColor3 = COL_CYAN
 inputBox.PlaceholderText = "Enter key here..."
@@ -408,11 +412,12 @@ inputBox.PlaceholderColor3 = COL_MUTED
 inputBox.Text = ""
 inputBox.ClearTextOnFocus = false
 inputBox.Font = Enum.Font.Code
-inputBox.TextScaled = true
-inputBox.LayoutOrder = 6
+inputBox.TextSize = 13
+inputBox.TextXAlignment = Enum.TextXAlignment.Left
+inputBox.LayoutOrder = 4
 inputBox.Parent = content
 local inputCorner = Instance.new("UICorner")
-inputCorner.CornerRadius = UDim.new(0, 9)
+inputCorner.CornerRadius = UDim.new(0, 10)
 inputCorner.Parent = inputBox
 local inputStroke = Instance.new("UIStroke")
 inputStroke.Color = COL_BORDER
@@ -431,17 +436,22 @@ inputBox.FocusLost:Connect(function()
 end)
 
 local submitBtn = Instance.new("TextButton")
-submitBtn.Size = UDim2.new(1, 0, 0, 42)
+submitBtn.Size = UDim2.new(1, 0, 0, 46)
 submitBtn.BackgroundColor3 = COL_CYAN
 submitBtn.Text = ${luaString(appearance.buttonLabel)}
 submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Font = Enum.Font.GothamBold
-submitBtn.TextScaled = true
+submitBtn.TextSize = 13
+submitBtn.TextXAlignment = Enum.TextXAlignment.Left
+submitBtn.LayoutOrder = 5
 submitBtn.AutoButtonColor = false
-submitBtn.LayoutOrder = 7
 submitBtn.Parent = content
+local submitPad = Instance.new("UIPadding")
+submitPad.PaddingLeft = UDim.new(0, 14)
+submitPad.PaddingRight = UDim.new(0, 46)
+submitPad.Parent = submitBtn
 local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 9)
+btnCorner.CornerRadius = UDim.new(0, 10)
 btnCorner.Parent = submitBtn
 local btnGradient = Instance.new("UIGradient")
 btnGradient.Rotation = 90
@@ -450,6 +460,25 @@ btnGradient.Parent = submitBtn
 TweenService:Create(btnGradient, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
     Offset = Vector2.new(0, 0.28)
 }):Play()
+local arrowBadge = Instance.new("Frame")
+arrowBadge.AnchorPoint = Vector2.new(1, 0.5)
+arrowBadge.Position = UDim2.new(1, -11, 0.5, 0)
+arrowBadge.Size = UDim2.new(0, 25, 0, 25)
+arrowBadge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+arrowBadge.BackgroundTransparency = 0.82
+arrowBadge.BorderSizePixel = 0
+arrowBadge.Parent = submitBtn
+local arrowBadgeCorner = Instance.new("UICorner")
+arrowBadgeCorner.CornerRadius = UDim.new(0, 8)
+arrowBadgeCorner.Parent = arrowBadge
+local submitArrow = Instance.new("TextLabel")
+submitArrow.Size = UDim2.fromScale(1, 1)
+submitArrow.BackgroundTransparency = 1
+submitArrow.Text = "→"
+submitArrow.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitArrow.TextSize = 16
+submitArrow.Font = Enum.Font.GothamBold
+submitArrow.Parent = arrowBadge
 local btnScale = Instance.new("UIScale")
 btnScale.Parent = submitBtn
 
@@ -476,20 +505,121 @@ statusLabel.Font = Enum.Font.Gotham
 statusLabel.TextSize = 11
 statusLabel.TextWrapped = true
 statusLabel.TextTransparency = 1
-statusLabel.LayoutOrder = 8
+statusLabel.LayoutOrder = 6
 statusLabel.Parent = content
 
 local getKeyBtn = Instance.new("TextButton")
-getKeyBtn.Size = UDim2.new(1, 0, 0, 22)
-getKeyBtn.BackgroundTransparency = 1
-getKeyBtn.Text = "Need a key? Tap to copy the Get-Key link"
-getKeyBtn.TextColor3 = COL_MUTED
-getKeyBtn.Font = Enum.Font.Gotham
-getKeyBtn.TextScaled = true
-getKeyBtn.LayoutOrder = 9
+getKeyBtn.Size = UDim2.new(1, 0, 0, 36)
+getKeyBtn.BackgroundColor3 = COL_INPUT
+getKeyBtn.BackgroundTransparency = 0.12
+getKeyBtn.Text = "↗   Need a key? Get one here"
+getKeyBtn.TextColor3 = COL_TEXT
+getKeyBtn.Font = Enum.Font.GothamSemibold
+getKeyBtn.TextSize = 11
+getKeyBtn.AutoButtonColor = false
+getKeyBtn.LayoutOrder = 7
 getKeyBtn.Parent = content
+local getKeyCorner = Instance.new("UICorner")
+getKeyCorner.CornerRadius = UDim.new(0, 9)
+getKeyCorner.Parent = getKeyBtn
+local getKeyStroke = Instance.new("UIStroke")
+getKeyStroke.Color = COL_BORDER
+getKeyStroke.Transparency = 0.2
+getKeyStroke.Parent = getKeyBtn
+local getKeyScale = Instance.new("UIScale")
+getKeyScale.Parent = getKeyBtn
+getKeyBtn.MouseEnter:Connect(function()
+    TweenService:Create(getKeyScale, TweenInfo.new(0.14, EASE_OUT), { Scale = 1.015 }):Play()
+    TweenService:Create(getKeyStroke, TweenInfo.new(0.14, EASE_OUT), { Color = COL_CYAN, Transparency = 0 }):Play()
+end)
+getKeyBtn.MouseLeave:Connect(function()
+    TweenService:Create(getKeyScale, TweenInfo.new(0.14, EASE_OUT), { Scale = 1 }):Play()
+    TweenService:Create(getKeyStroke, TweenInfo.new(0.14, EASE_OUT), { Color = COL_BORDER, Transparency = 0.2 }):Play()
+end)
 
-local introTexts = { eyebrow, badgeIcon, title, subtitle, vaultNameLabel, inputBox, submitBtn, getKeyBtn }
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 56)
+header.BackgroundTransparency = 1
+header.LayoutOrder = 1
+header.Parent = content
+badge.Parent = header
+badge.Position = UDim2.new(0, 0, 0, 4)
+badge.Size = UDim2.new(0, 48, 0, 48)
+eyebrow.Parent = header
+eyebrow.Position = UDim2.new(0, 60, 0, 1)
+eyebrow.Size = UDim2.new(1, -108, 0, 11)
+eyebrow.Text = "SECURE KEY ACCESS"
+eyebrow.TextXAlignment = Enum.TextXAlignment.Left
+eyebrow.TextSize = 8
+title.Parent = header
+title.Position = UDim2.new(0, 60, 0, 13)
+title.Size = UDim2.new(1, -108, 0, 23)
+title.TextScaled = false
+title.TextSize = 14
+title.TextTruncate = Enum.TextTruncate.AtEnd
+title.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Parent = header
+subtitle.Position = UDim2.new(0, 60, 0, 36)
+subtitle.Size = UDim2.new(1, -108, 0, 15)
+subtitle.TextScaled = false
+subtitle.TextSize = 10
+subtitle.TextTruncate = Enum.TextTruncate.AtEnd
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local vaultPill = Instance.new("Frame")
+vaultPill.Size = UDim2.new(1, 0, 0, 28)
+vaultPill.BackgroundColor3 = COL_INPUT
+vaultPill.BackgroundTransparency = 0.2
+vaultPill.BorderSizePixel = 0
+vaultPill.LayoutOrder = 2
+vaultPill.Parent = content
+local vaultPillCorner = Instance.new("UICorner")
+vaultPillCorner.CornerRadius = UDim.new(0, 8)
+vaultPillCorner.Parent = vaultPill
+local vaultPillStroke = Instance.new("UIStroke")
+vaultPillStroke.Color = COL_BORDER
+vaultPillStroke.Transparency = 0.25
+vaultPillStroke.Parent = vaultPill
+local vaultDot = Instance.new("Frame")
+vaultDot.Position = UDim2.new(0, 10, 0.5, -3)
+vaultDot.Size = UDim2.new(0, 6, 0, 6)
+vaultDot.BackgroundColor3 = COL_CYAN
+vaultDot.BorderSizePixel = 0
+vaultDot.Parent = vaultPill
+local vaultDotCorner = Instance.new("UICorner")
+vaultDotCorner.CornerRadius = UDim.new(1, 0)
+vaultDotCorner.Parent = vaultDot
+vaultNameLabel.Parent = vaultPill
+vaultNameLabel.Position = UDim2.new(0, 23, 0, 0)
+vaultNameLabel.Size = UDim2.new(1, -32, 1, 0)
+vaultNameLabel.TextScaled = false
+vaultNameLabel.TextSize = 10
+vaultNameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+vaultNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+vaultNameLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+local inputCaption = Instance.new("TextLabel")
+inputCaption.Size = UDim2.new(1, 0, 0, 11)
+inputCaption.BackgroundTransparency = 1
+inputCaption.Text = "ACCESS KEY"
+inputCaption.TextColor3 = COL_MUTED
+inputCaption.TextSize = 8
+inputCaption.Font = Enum.Font.GothamBold
+inputCaption.TextXAlignment = Enum.TextXAlignment.Left
+inputCaption.LayoutOrder = 3
+inputCaption.Parent = content
+
+local footerLabel = Instance.new("TextLabel")
+footerLabel.Size = UDim2.new(1, 0, 0, 10)
+footerLabel.BackgroundTransparency = 1
+footerLabel.Text = "VOIDEDX KEY ACCESS"
+footerLabel.TextColor3 = COL_MUTED
+footerLabel.TextSize = 8
+footerLabel.Font = Enum.Font.GothamBold
+footerLabel.LayoutOrder = 8
+footerLabel.Parent = content
+
+local introTexts = { eyebrow, badgeIcon, title, subtitle, vaultNameLabel, inputCaption, inputBox, submitBtn, submitArrow, getKeyBtn, footerLabel }
 for _, textObject in ipairs(introTexts) do
     textObject.TextTransparency = 1
 end
@@ -675,6 +805,10 @@ local function shakeCard()
 end
 
 getKeyBtn.Activated:Connect(function()
+    TweenService:Create(getKeyScale, TweenInfo.new(0.09, EASE_OUT), { Scale = 0.97 }):Play()
+    task.delay(0.1, function()
+        if getKeyBtn.Parent then TweenService:Create(getKeyScale, TweenInfo.new(0.16, EASE_OUT), { Scale = 1 }):Play() end
+    end)
     local copied = pcall(function() setclipboard(${luaString(keyPageUrl)}) end)
     if copied then
         setStatus("Link copied! Paste it in your browser.", COL_GREEN)
@@ -772,7 +906,10 @@ local function attemptVerify(fromSavedKey)
     TweenService:Create(uiScale, TweenInfo.new(0.15, EASE_OUT), { Scale = 1.04 }):Play()
     task.wait(0.15)
     TweenService:Create(uiScale, TweenInfo.new(0.25, EASE_OUT), { Scale = 0.9 }):Play()
-    TweenService:Create(card, TweenInfo.new(0.25, EASE_OUT), { BackgroundTransparency = 1 }):Play()
+    TweenService:Create(card, TweenInfo.new(0.25, EASE_OUT), {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.5, 0, 0.5, 13)
+    }):Play()
     TweenService:Create(cardStroke, TweenInfo.new(0.25, EASE_OUT), { Transparency = 1 }):Play()
     TweenService:Create(overlay, TweenInfo.new(0.3, EASE_OUT), { BackgroundTransparency = 1 }):Play()
     task.wait(0.25)
@@ -783,7 +920,13 @@ local function attemptVerify(fromSavedKey)
     loadstring(result.code)()
 end
 
-submitBtn.Activated:Connect(attemptVerify)
+submitBtn.Activated:Connect(function()
+    TweenService:Create(btnScale, TweenInfo.new(0.09, EASE_OUT), { Scale = 0.97 }):Play()
+    task.delay(0.1, function()
+        if submitBtn.Parent then TweenService:Create(btnScale, TweenInfo.new(0.16, EASE_OUT), { Scale = 1 }):Play() end
+    end)
+    attemptVerify()
+end)
 inputBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then attemptVerify() end
 end)

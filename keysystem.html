@@ -48,7 +48,7 @@
                         <li><strong>Turn it on.</strong> Switch on <em>Enable Key System</em> to show the key settings.</li>
                         <li><strong>Choose who gets keys.</strong> Add a Private Key for people you choose, or enable Public Key so visitors can request one from your Get-Key page.</li>
                         <li><strong>Set the timer.</strong> Choose how long a key lasts and how many players may use it. Expired keys are rejected; the remaining time is shown in the in-game status badge.</li>
-                        <li><strong>Set up the in-game popup.</strong> Turn on <em>In-Game Key GUI</em> to ask players for a key in Roblox. Customize the title, colors, and button, then check the live preview. After a key verifies, VoidedX saves it locally when the executor supports file saving, and checks it automatically next run.</li>
+                        <li><strong>Set up the in-game popup.</strong> Turn on <em>In-Game Key GUI</em> to ask players for a key in Roblox. Customize the title, colors, and button, then use the live-preview controls to replay the entrance, unlock, Get-Key, and close/open animations. After a key verifies, VoidedX saves it locally when the executor supports file saving, and checks it automatically next run.</li>
                         <li><strong>Optional Linkvertise.</strong> In the Get-Key Link tab, copy the Get-Key URL. Make that the destination of a Linkvertise Target Link with Anti-Bypass enabled. Save your Linkvertise token, paste the Linkvertise share URL into Ad-Gate Link, then Apply Changes.</li>
                         <li><strong>Save your settings.</strong> Click <em>Apply Changes</em> after editing. Share the Get-Key URL with players who need a public key.</li>
                     </ol>
@@ -181,20 +181,40 @@
                                     </label>
                                 </div>
                                 <div class="gui-preview-wrap">
-                                    <span class="panel-label">LIVE PREVIEW</span>
-                                    <div class="gui-preview-screen">
-                                        <div class="gui-preview-card" id="gui-preview-card">
-                                            <div class="gui-preview-accent" id="gui-preview-accent"></div>
-                                            <div class="gui-preview-badge" id="gui-preview-badge">🔑</div>
-                                            <strong id="gui-preview-title">VoidedX Key System</strong>
-                                            <span id="gui-preview-subtitle">Enter your key to continue</span>
-                                            <small class="gui-preview-vault-name" id="gui-preview-vault-name">Vault: --</small>
-                                            <div class="gui-preview-input" id="gui-preview-input">Enter key here...</div>
-                                            <div class="gui-preview-button" id="gui-preview-button">Submit</div>
-                                            <small>Need a key? Tap to copy the Get-Key link</small>
-                                        </div>
+                                    <div class="gui-preview-heading">
+                                        <span class="panel-label">LIVE PREVIEW</span>
+                                        <span class="gui-preview-note">Controls below are simulations</span>
                                     </div>
-                                    <p class="gui-preview-hint">Changes appear here as you type. Click Apply Changes to save them to the in-game popup.</p>
+                                    <div class="gui-preview-screen" id="gui-preview-screen">
+                                        <div class="gui-preview-card is-entering" id="gui-preview-card">
+                                            <div class="gui-preview-accent" id="gui-preview-accent"></div>
+                                            <button type="button" class="gui-preview-close" id="gui-preview-close" aria-label="Close popup preview">×</button>
+                                            <div class="gui-preview-header">
+                                                <div class="gui-preview-badge" id="gui-preview-badge">🔑</div>
+                                                <div class="gui-preview-title-group">
+                                                    <small class="gui-preview-eyebrow">SECURE KEY ACCESS</small>
+                                                    <strong id="gui-preview-title">VoidedX Key System</strong>
+                                                    <span id="gui-preview-subtitle">Enter your key to continue</span>
+                                                </div>
+                                            </div>
+                                            <div class="gui-preview-vault-pill"><i></i><small class="gui-preview-vault-name" id="gui-preview-vault-name">Vault: --</small></div>
+                                            <small class="gui-preview-key-label">ACCESS KEY</small>
+                                            <div class="gui-preview-input" id="gui-preview-input">Enter key here...</div>
+                                            <button type="button" class="gui-preview-button" id="gui-preview-button"><span id="gui-preview-button-text">Submit</span><b>→</b></button>
+                                            <button type="button" class="gui-preview-getkey" id="gui-preview-getkey">↗ &nbsp; Need a key? Get one here</button>
+                                            <div class="gui-preview-status" id="gui-preview-status" aria-live="polite"></div>
+                                            <small class="gui-preview-footer">KEY VERIFICATION · VOIDEDX</small>
+                                        </div>
+                                        <div class="gui-preview-timer hidden" id="gui-preview-timer"><small>KEY UNLOCKED</small><strong>Saved on this device</strong><span>Expires in 23h 59m</span></div>
+                                        <button type="button" class="gui-preview-closed hidden" id="gui-preview-closed"><i class="fa-solid fa-window-maximize"></i><strong>Popup closed</strong><span>Tap to open it again.</span></button>
+                                    </div>
+                                    <div class="gui-preview-controls" role="group" aria-label="Preview in-game GUI animations">
+                                        <button type="button" class="gui-preview-control" data-gui-preview-action="entrance"><i class="fa-solid fa-play"></i> Replay intro</button>
+                                        <button type="button" class="gui-preview-control" data-gui-preview-action="unlock"><i class="fa-solid fa-lock-open"></i> Unlock</button>
+                                        <button type="button" class="gui-preview-control" data-gui-preview-action="getkey"><i class="fa-solid fa-key"></i> Need a key</button>
+                                        <button type="button" class="gui-preview-control" id="gui-preview-toggle" data-gui-preview-action="toggle"><i class="fa-solid fa-xmark"></i> Close popup</button>
+                                    </div>
+                                    <p class="gui-preview-hint">Try the entrance, unlock, Get-Key, and close/open animations. This preview is visual only; it does not verify or copy a real key.</p>
                                 </div>
                             </div>
                         </div>
