@@ -276,12 +276,13 @@ cardCorner.CornerRadius = UDim.new(0, 20)
 cardCorner.Parent = card
 
 local cardStroke = Instance.new("UIStroke")
-cardStroke.Color = COL_BORDER
+cardStroke.Color = COL_CYAN
 cardStroke.Thickness = 1
+cardStroke.Transparency = 0.6
 cardStroke.Parent = card
 local cardGradient = Instance.new("UIGradient")
 cardGradient.Rotation = 90
-cardGradient.Color = ColorSequence.new(COL_BG:Lerp(COL_CYAN, 0.07), COL_BG)
+cardGradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 255, 255))
 cardGradient.Parent = card
 
 local uiScale = Instance.new("UIScale")
@@ -295,7 +296,7 @@ TweenService:Create(card, TweenInfo.new(0.42, EASE_OUT), {
     BackgroundTransparency = 0,
     Position = UDim2.new(0.5, 0, 0.5, 0)
 }):Play()
-TweenService:Create(cardStroke, TweenInfo.new(0.38, EASE_OUT), { Transparency = 0 }):Play()
+TweenService:Create(cardStroke, TweenInfo.new(0.38, EASE_OUT), { Transparency = 0.6 }):Play()
 
 local closeButton = Instance.new("TextButton")
 closeButton.AnchorPoint = Vector2.new(1, 0)
@@ -342,6 +343,7 @@ end)
 
 local accentBar = Instance.new("Frame")
 accentBar.Size = UDim2.new(1, 0, 0, 3)
+accentBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 accentBar.BorderSizePixel = 0
 accentBar.ZIndex = 3
 accentBar.Parent = card
@@ -397,7 +399,7 @@ eyebrow.Parent = content
 
 local badge = Instance.new("Frame")
 badge.Size = UDim2.new(0, 52, 0, 52)
-badge.BackgroundColor3 = COL_CYAN
+badge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 badge.BorderSizePixel = 0
 badge.LayoutOrder = 2
 badge.Parent = content
@@ -411,7 +413,6 @@ badgeGradient.Parent = badge
 local badgeScale = Instance.new("UIScale")
 badgeScale.Parent = badge
 TweenService:Create(badgeScale, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.045 }):Play()
-TweenService:Create(badgeGradient, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Rotation = 135 }):Play()
 local badgeIcon = Instance.new("TextLabel")
 badgeIcon.Size = UDim2.fromScale(1, 1)
 badgeIcon.BackgroundTransparency = 1
@@ -468,7 +469,8 @@ local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 10)
 inputCorner.Parent = inputBox
 local inputStroke = Instance.new("UIStroke")
-inputStroke.Color = COL_BORDER
+inputStroke.Color = COL_CYAN
+inputStroke.Transparency = 0.47
 inputStroke.Thickness = 1
 inputStroke.Parent = inputBox
 local inputPad = Instance.new("UIPadding")
@@ -477,15 +479,15 @@ inputPad.PaddingRight = UDim.new(0, 12)
 inputPad.Parent = inputBox
 
 inputBox.Focused:Connect(function()
-    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_CYAN, Thickness = 2 }):Play()
+    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_CYAN, Thickness = 2, Transparency = 0.18 }):Play()
 end)
 inputBox.FocusLost:Connect(function()
-    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_BORDER, Thickness = 1 }):Play()
+    TweenService:Create(inputStroke, TweenInfo.new(0.2, EASE_OUT), { Color = COL_CYAN, Thickness = 1, Transparency = 0.47 }):Play()
 end)
 
 local submitBtn = Instance.new("TextButton")
 submitBtn.Size = UDim2.new(1, 0, 0, 46)
-submitBtn.BackgroundColor3 = COL_CYAN
+submitBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Text = ${luaString(appearance.buttonLabel)}
 submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Font = Enum.Font.GothamBold
@@ -502,12 +504,9 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 10)
 btnCorner.Parent = submitBtn
 local btnGradient = Instance.new("UIGradient")
-btnGradient.Rotation = 90
+btnGradient.Rotation = 45
 btnGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 btnGradient.Parent = submitBtn
-TweenService:Create(btnGradient, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-    Offset = Vector2.new(0, 0.28)
-}):Play()
 local arrowBadge = Instance.new("Frame")
 arrowBadge.AnchorPoint = Vector2.new(1, 0.5)
 arrowBadge.Position = UDim2.new(1, -11, 0.5, 0)
@@ -849,7 +848,7 @@ local function shakeCard()
     end
     local flashColor = cardStroke.Color
     cardStroke.Color = COL_RED
-    TweenService:Create(cardStroke, TweenInfo.new(0.4, EASE_OUT), { Color = COL_BORDER }):Play()
+    TweenService:Create(cardStroke, TweenInfo.new(0.4, EASE_OUT), { Color = COL_CYAN }):Play()
 end
 
 getKeyBtn.Activated:Connect(function()
@@ -948,7 +947,7 @@ local function attemptVerify(fromSavedKey)
     local fileSaved = saveKeyLocally(typedKey)
     setStatus(fileSaved and "Key verified · saved on this device." or "Key verified · local file saving unavailable.", COL_GREEN)
     submitBtn.Text = "Success"
-    submitBtn.BackgroundColor3 = COL_GREEN
+    submitBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     btnGradient.Color = ColorSequence.new(COL_GREEN, COL_CYAN)
     badgeGradient.Color = ColorSequence.new(COL_GREEN, COL_CYAN)
     TweenService:Create(uiScale, TweenInfo.new(0.15, EASE_OUT), { Scale = 1.04 }):Play()
