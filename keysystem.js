@@ -124,7 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const guiTitleInput = document.getElementById('gui-title-input');
     const guiSubtitleInput = document.getElementById('gui-subtitle-input');
     const guiButtonInput = document.getElementById('gui-button-input');
+    const guiTemplateGrid = document.getElementById('gui-template-grid');
+    const guiTemplateSelected = document.getElementById('gui-template-selected');
+    const guiTemplateCount = document.getElementById('gui-template-count');
     const guiAccentColor = document.getElementById('gui-accent-color');
+    const guiSecondaryColor = document.getElementById('gui-secondary-color');
     const guiBackgroundColor = document.getElementById('gui-background-color');
     const guiTextColor = document.getElementById('gui-text-color');
     const guiPreviewCard = document.getElementById('gui-preview-card');
@@ -133,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const guiPreviewTitle = document.getElementById('gui-preview-title');
     const guiPreviewSubtitle = document.getElementById('gui-preview-subtitle');
     const guiPreviewVaultName = document.getElementById('gui-preview-vault-name');
+    const guiPreviewInput = document.getElementById('gui-preview-input');
     const guiPreviewButton = document.getElementById('gui-preview-button');
     const chkIpLock = document.getElementById('chk-ip-lock');
     const ipLockStatus = document.getElementById('ip-lock-status');
@@ -176,20 +181,94 @@ document.addEventListener('DOMContentLoaded', () => {
         subtitle: 'Enter your key to continue',
         buttonLabel: 'Submit',
         accentColor: '#06b6d4',
+        secondaryColor: '#6366f1',
         backgroundColor: '#0b0d12',
-        textColor: '#f8fafc'
+        textColor: '#f8fafc',
+        templateId: 'custom'
     };
+
+    const guiTemplates = [
+        { id: 'cyber-neon', name: 'Cyber Neon', mood: 'Electric cyan', icon: 'fa-bolt', title: 'VOIDEDX ACCESS', subtitle: 'Enter your key to unlock', buttonLabel: 'VERIFY KEY', accentColor: '#00e5c0', secondaryColor: '#31a8ff', backgroundColor: '#080d16', textColor: '#edfffe' },
+        { id: 'ultraviolet', name: 'Ultraviolet', mood: 'Purple haze', icon: 'fa-wand-magic-sparkles', title: 'NOVA ACCESS', subtitle: 'Your next level starts here', buttonLabel: 'UNLOCK ACCESS', accentColor: '#a855f7', secondaryColor: '#ec4899', backgroundColor: '#100b1b', textColor: '#faf5ff' },
+        { id: 'arctic', name: 'Arctic Pulse', mood: 'Ice blue', icon: 'fa-snowflake', title: 'ARCTIC KEY SYSTEM', subtitle: 'Enter your key to continue', buttonLabel: 'CONTINUE', accentColor: '#38bdf8', secondaryColor: '#818cf8', backgroundColor: '#07131f', textColor: '#effaff' },
+        { id: 'toxic', name: 'Toxic Lime', mood: 'Radioactive green', icon: 'fa-biohazard', title: 'TOXIC ACCESS', subtitle: 'Key required to proceed', buttonLabel: 'ACTIVATE', accentColor: '#a3e635', secondaryColor: '#22c55e', backgroundColor: '#0a1108', textColor: '#f7fee7' },
+        { id: 'sunset', name: 'Afterglow', mood: 'Pink to amber', icon: 'fa-sun', title: 'AFTERGLOW ACCESS', subtitle: 'A little light before launch', buttonLabel: 'LET ME IN', accentColor: '#fb7185', secondaryColor: '#f59e0b', backgroundColor: '#190c15', textColor: '#fff1f2' },
+        { id: 'royal', name: 'Royal Orbit', mood: 'Regal violet', icon: 'fa-crown', title: 'ROYAL ACCESS', subtitle: 'Enter your private key', buttonLabel: 'VERIFY ACCESS', accentColor: '#8b5cf6', secondaryColor: '#2563eb', backgroundColor: '#0d0b19', textColor: '#f5f3ff' },
+        { id: 'crimson', name: 'Crimson Ops', mood: 'Red alert', icon: 'fa-crosshairs', title: 'CRIMSON PROTOCOL', subtitle: 'Authentication required', buttonLabel: 'AUTHORIZE', accentColor: '#f43f5e', secondaryColor: '#fb7185', backgroundColor: '#16090d', textColor: '#fff1f2' },
+        { id: 'emerald', name: 'Emerald Core', mood: 'Deep green', icon: 'fa-gem', title: 'EMERALD ACCESS', subtitle: 'Your key opens the door', buttonLabel: 'VERIFY KEY', accentColor: '#10b981', secondaryColor: '#2dd4bf', backgroundColor: '#07140f', textColor: '#ecfdf5' },
+        { id: 'gold', name: 'Solar Gold', mood: 'Gold and fire', icon: 'fa-star', title: 'SOLAR ACCESS', subtitle: 'A key is needed to continue', buttonLabel: 'UNLOCK', accentColor: '#fbbf24', secondaryColor: '#f97316', backgroundColor: '#181007', textColor: '#fffbeb' },
+        { id: 'sakura', name: 'Sakura Dream', mood: 'Blush pink', icon: 'fa-heart', title: 'SAKURA ACCESS', subtitle: 'Welcome, enter your key', buttonLabel: 'OPEN GATE', accentColor: '#f472b6', secondaryColor: '#c084fc', backgroundColor: '#190d18', textColor: '#fdf2f8' },
+        { id: 'ocean', name: 'Ocean Drive', mood: 'Aqua blue', icon: 'fa-water', title: 'OCEAN ACCESS', subtitle: 'Dive in with your key', buttonLabel: 'DIVE IN', accentColor: '#06b6d4', secondaryColor: '#3b82f6', backgroundColor: '#071217', textColor: '#ecfeff' },
+        { id: 'stealth', name: 'Stealth Mono', mood: 'Clean monochrome', icon: 'fa-moon', title: 'STEALTH ACCESS', subtitle: 'A quiet place for your key', buttonLabel: 'PROCEED', accentColor: '#94a3b8', secondaryColor: '#e2e8f0', backgroundColor: '#0b0d12', textColor: '#f8fafc' },
+        { id: 'aurora', name: 'Aurora Flow', mood: 'Mint and violet', icon: 'fa-wand-sparkles', title: 'AURORA ACCESS', subtitle: 'Enter your key to continue', buttonLabel: 'LIGHT IT UP', accentColor: '#34d399', secondaryColor: '#818cf8', backgroundColor: '#09121a', textColor: '#ecfdf5' },
+        { id: 'hologram', name: 'Hologram', mood: 'Prismatic cyan', icon: 'fa-cube', title: 'HOLOGRAM ACCESS', subtitle: 'Identity check required', buttonLabel: 'VERIFY ID', accentColor: '#22d3ee', secondaryColor: '#c084fc', backgroundColor: '#0b0c18', textColor: '#f0fdff' }
+    ];
+    let selectedGuiTemplate = 'custom';
+
+    function renderGuiTemplateGallery() {
+        if (!guiTemplateGrid) return;
+        guiTemplateGrid.innerHTML = '';
+        guiTemplates.forEach(template => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `gui-template-card${selectedGuiTemplate === template.id ? ' active' : ''}`;
+            button.setAttribute('aria-pressed', selectedGuiTemplate === template.id ? 'true' : 'false');
+            button.title = `Apply the ${template.name} theme`;
+            button.style.setProperty('--template-accent', template.accentColor);
+            button.style.setProperty('--template-glow', template.secondaryColor);
+            button.innerHTML = `<span class="gui-template-swatch"><i class="fa-solid ${template.icon}"></i></span><span class="gui-template-copybox"><strong>${template.name}</strong><small>${template.mood}</small></span>`;
+            button.addEventListener('click', () => {
+                guiTitleInput.value = template.title;
+                guiSubtitleInput.value = template.subtitle;
+                guiButtonInput.value = template.buttonLabel;
+                guiAccentColor.value = template.accentColor;
+                guiSecondaryColor.value = template.secondaryColor;
+                guiBackgroundColor.value = template.backgroundColor;
+                guiTextColor.value = template.textColor;
+                selectedGuiTemplate = template.id;
+                renderGuiTemplateGallery();
+                renderGuiPreview();
+            });
+            guiTemplateGrid.appendChild(button);
+        });
+        if (guiTemplateCount) guiTemplateCount.textContent = `${guiTemplates.length} looks`;
+        if (guiTemplateSelected) {
+            const selected = guiTemplates.find(template => template.id === selectedGuiTemplate);
+            guiTemplateSelected.textContent = selected ? selected.name : 'Custom';
+        }
+    }
 
     function renderGuiPreview() {
         const accent = guiAccentColor.value || defaultGuiAppearance.accentColor;
+        const glow = guiSecondaryColor.value || defaultGuiAppearance.secondaryColor;
+        const gradient = `linear-gradient(135deg, ${accent}, ${glow})`;
         guiPreviewCard.style.backgroundColor = guiBackgroundColor.value || defaultGuiAppearance.backgroundColor;
         guiPreviewCard.style.color = guiTextColor.value || defaultGuiAppearance.textColor;
-        guiPreviewAccent.style.backgroundColor = accent;
-        guiPreviewBadge.style.backgroundColor = accent;
-        guiPreviewButton.style.backgroundColor = accent;
+        guiPreviewCard.style.borderColor = `${accent}66`;
+        guiPreviewAccent.style.background = `linear-gradient(90deg, ${accent}, ${glow})`;
+        guiPreviewBadge.style.background = gradient;
+        guiPreviewButton.style.background = gradient;
+        guiPreviewButton.style.boxShadow = `0 6px 16px ${accent}44`;
+        guiPreviewVaultName.style.color = accent;
+        if (guiPreviewInput) {
+            guiPreviewInput.style.borderColor = `${accent}88`;
+            guiPreviewInput.style.color = accent;
+        }
         guiPreviewTitle.textContent = guiTitleInput.value.trim() || defaultGuiAppearance.title;
         guiPreviewSubtitle.textContent = guiSubtitleInput.value.trim() || defaultGuiAppearance.subtitle;
         guiPreviewButton.textContent = guiButtonInput.value.trim() || defaultGuiAppearance.buttonLabel;
+    }
+
+    function markGuiAppearanceCustom() {
+        selectedGuiTemplate = 'custom';
+        if (guiTemplateSelected) guiTemplateSelected.textContent = 'Custom';
+        if (guiTemplateGrid) {
+            guiTemplateGrid.querySelectorAll('.gui-template-card').forEach(button => {
+                button.classList.remove('active');
+                button.setAttribute('aria-pressed', 'false');
+            });
+        }
+        renderGuiPreview();
     }
 
     function setGuiCustomizerVisible() {
@@ -244,8 +323,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    [guiTitleInput, guiSubtitleInput, guiButtonInput, guiAccentColor, guiBackgroundColor, guiTextColor]
-        .forEach(input => input.addEventListener('input', renderGuiPreview));
+    renderGuiTemplateGallery();
+    [guiTitleInput, guiSubtitleInput, guiButtonInput, guiAccentColor, guiSecondaryColor, guiBackgroundColor, guiTextColor]
+        .forEach(input => input.addEventListener('input', markGuiAppearanceCustom));
     chkGuiMode.addEventListener('change', () => {
         setGuiCustomizerVisible();
         renderGuiPreview();
@@ -705,13 +785,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             chkGuiMode.checked = !!data.guiMode;
             const appearance = { ...defaultGuiAppearance, ...(data.guiAppearance || {}) };
+            selectedGuiTemplate = guiTemplates.some(template => template.id === appearance.templateId) ? appearance.templateId : 'custom';
             guiTitleInput.value = appearance.title;
             guiSubtitleInput.value = appearance.subtitle;
             guiButtonInput.value = appearance.buttonLabel;
             guiAccentColor.value = appearance.accentColor;
+            guiSecondaryColor.value = appearance.secondaryColor;
             guiBackgroundColor.value = appearance.backgroundColor;
             guiTextColor.value = appearance.textColor;
             setGuiCustomizerVisible();
+            renderGuiTemplateGallery();
             renderGuiPreview();
             chkIpLock.checked = !!data.ipLock;
 
@@ -773,8 +856,10 @@ document.addEventListener('DOMContentLoaded', () => {
             subtitle: guiSubtitleInput.value.trim().slice(0, 64) || defaultGuiAppearance.subtitle,
             buttonLabel: guiButtonInput.value.trim().slice(0, 20) || defaultGuiAppearance.buttonLabel,
             accentColor: guiAccentColor.value,
+            secondaryColor: guiSecondaryColor.value,
             backgroundColor: guiBackgroundColor.value,
-            textColor: guiTextColor.value
+            textColor: guiTextColor.value,
+            templateId: selectedGuiTemplate
         };
         const privateKeysPayload = requireKey ? currentKeys.map(k => ({
             id: k.id, label: k.label.trim() || 'Key', key: k.key.trim(),

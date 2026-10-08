@@ -139,6 +139,17 @@
                                 <p><strong>On:</strong> the loadstring has no key in it — a popup appears in-game (PC and mobile) asking the player to type their key. <strong>Off:</strong> the key is baked into the loadstring URL itself.</p>
                             </div>
                             <div id="gui-customizer" class="gui-customizer hidden">
+                                <div class="gui-template-picker">
+                                    <div class="gui-template-heading">
+                                        <div>
+                                            <span class="panel-label">READY-MADE THEMES</span>
+                                            <span id="gui-template-selected" class="gui-template-selected">Custom</span>
+                                        </div>
+                                        <span id="gui-template-count" class="gui-template-count">14 looks</span>
+                                    </div>
+                                    <p class="gui-template-copy">Choose a complete color style, then fine-tune its text and colors below.</p>
+                                    <div id="gui-template-grid" class="gui-template-grid" role="group" aria-label="In-game key system themes"></div>
+                                </div>
                                 <div class="gui-customizer-fields">
                                     <label class="gui-setting">
                                         <span>Popup title</span>
@@ -155,6 +166,10 @@
                                     <label class="gui-setting gui-color-setting">
                                         <span>Accent</span>
                                         <input type="color" id="gui-accent-color" value="#06b6d4" aria-label="Popup accent color">
+                                    </label>
+                                    <label class="gui-setting gui-color-setting">
+                                        <span>Glow</span>
+                                        <input type="color" id="gui-secondary-color" value="#6366f1" aria-label="Popup glow color">
                                     </label>
                                     <label class="gui-setting gui-color-setting">
                                         <span>Panel</span>
@@ -174,7 +189,7 @@
                                             <strong id="gui-preview-title">VoidedX Key System</strong>
                                             <span id="gui-preview-subtitle">Enter your key to continue</span>
                                             <small class="gui-preview-vault-name" id="gui-preview-vault-name">Vault: --</small>
-                                            <div class="gui-preview-input">Enter key here...</div>
+                                            <div class="gui-preview-input" id="gui-preview-input">Enter key here...</div>
                                             <div class="gui-preview-button" id="gui-preview-button">Submit</div>
                                             <small>Need a key? Tap to copy the Get-Key link</small>
                                         </div>

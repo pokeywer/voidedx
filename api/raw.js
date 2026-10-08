@@ -132,6 +132,7 @@ function buildGuiLoader(id, origin, rawAppearance = {}, rawVaultName = '') {
     const toRgb = hex => hex.match(/[a-f\d]{2}/gi).map(part => parseInt(part, 16));
     const [bgR, bgG, bgB] = toRgb(appearance.backgroundColor);
     const [accentR, accentG, accentB] = toRgb(appearance.accentColor);
+    const [glowR, glowG, glowB] = toRgb(appearance.secondaryColor);
     const [textR, textG, textB] = toRgb(appearance.textColor);
     return `
 local Players = game:GetService("Players")
@@ -181,7 +182,7 @@ local COL_BG = Color3.fromRGB(${bgR}, ${bgG}, ${bgB})
 local COL_INPUT = Color3.fromRGB(22, 26, 36)
 local COL_BORDER = Color3.fromRGB(33, 38, 53)
 local COL_CYAN = Color3.fromRGB(${accentR}, ${accentG}, ${accentB})
-local COL_ACCENT = COL_CYAN
+local COL_ACCENT = Color3.fromRGB(${glowR}, ${glowG}, ${glowB})
 local COL_TEXT = Color3.fromRGB(${textR}, ${textG}, ${textB})
 local COL_MUTED = Color3.fromRGB(100, 116, 139)
 local COL_RED = Color3.fromRGB(239, 68, 68)
@@ -696,6 +697,7 @@ function sanitizeGuiAppearance(raw = {}) {
         subtitle: text(raw.subtitle, 'Enter your key to continue', 64),
         buttonLabel: text(raw.buttonLabel, 'Submit', 20),
         accentColor: color(raw.accentColor, '#06b6d4'),
+        secondaryColor: color(raw.secondaryColor, '#6366f1'),
         backgroundColor: color(raw.backgroundColor, '#0b0d12'),
         textColor: color(raw.textColor, '#f8fafc')
     };

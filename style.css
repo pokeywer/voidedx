@@ -177,6 +177,21 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .ks-tutorial li em { color: var(--cyan); font-style: normal; }
 .ks-tutorial-note { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border-color); font-size: 11px; }
 .gui-customizer { display: flex; flex-direction: column; gap: 14px; padding: 14px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; }
+.gui-template-picker { display: flex; flex-direction: column; gap: 8px; padding: 11px; border: 1px solid rgba(99, 102, 241, .2); border-radius: 9px; background: radial-gradient(ellipse at 95% 0, rgba(99, 102, 241, .1), transparent 55%), rgba(7, 10, 17, .55); }
+.gui-template-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gui-template-heading > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gui-template-heading .panel-label { margin: 0; color: #a5b4fc; }
+.gui-template-selected { padding: 3px 7px; border: 1px solid rgba(99, 102, 241, .25); border-radius: 20px; background: rgba(99, 102, 241, .1); color: #c7d2fe; font-size: 9px; font-weight: 800; }
+.gui-template-count { color: #66738a; font-size: 9px; white-space: nowrap; }
+.gui-template-copy { color: var(--text-muted); font-size: 10px; line-height: 1.45; }
+.gui-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.gui-template-card { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid rgba(148, 163, 184, .13); border-radius: 8px; background: linear-gradient(145deg, rgba(18, 22, 32, .95), rgba(10, 13, 20, .95)); color: var(--text-primary); text-align: left; cursor: pointer; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.gui-template-card:hover { transform: translateY(-1px); border-color: var(--template-accent); box-shadow: 0 5px 16px color-mix(in srgb, var(--template-accent) 18%, transparent); }
+.gui-template-card.active { border-color: var(--template-accent); background: linear-gradient(120deg, color-mix(in srgb, var(--template-accent) 12%, #0b0d12), rgba(11, 13, 18, .96)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--template-accent) 22%, transparent), 0 5px 15px color-mix(in srgb, var(--template-accent) 12%, transparent); }
+.gui-template-swatch { position: relative; display: grid; place-items: center; flex: 0 0 31px; width: 31px; height: 31px; overflow: hidden; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: linear-gradient(135deg, var(--template-accent), var(--template-glow)); color: #fff; font-size: 13px; box-shadow: 0 3px 10px color-mix(in srgb, var(--template-accent) 28%, transparent); }
+.gui-template-copybox { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
+.gui-template-copybox strong { overflow: hidden; color: #e8edf7; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.gui-template-copybox small { overflow: hidden; color: #7e8ba2; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .gui-customizer-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .gui-setting { display: flex; flex-direction: column; gap: 6px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .gui-setting .input-field { color: var(--text-primary); }
@@ -186,15 +201,15 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .gui-preview-screen { min-height: 286px; display: flex; align-items: center; justify-content: center; padding: 16px; border-radius: 8px; background: radial-gradient(ellipse at center, #20283a 0, #10131b 70%); border: 1px solid var(--border-color); }
 .gui-preview-card { width: min(100%, 285px); position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 18px 18px; overflow: hidden; border: 1px solid #33394b; border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.45); font-size: 13px; text-align: center; }
 .gui-preview-accent { position: absolute; inset: 0 0 auto; height: 4px; }
-.gui-preview-badge { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; font-size: 22px; }
+.gui-preview-badge { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; font-size: 22px; box-shadow: 0 7px 20px rgba(0,0,0,.3); }
 .gui-preview-card strong { font-size: 14px; }
 .gui-preview-card > span { font-size: 11px; opacity: .7; }
 .gui-preview-vault-name { color: var(--cyan); font-size: 10px !important; font-weight: 700; }
-.gui-preview-input { width: 100%; padding: 11px; border: 1px solid #33394b; border-radius: 8px; background: #161a24; color: #94a3b8; font: 11px Consolas, monospace; text-align: left; }
-.gui-preview-button { width: 100%; padding: 10px; border-radius: 8px; color: #fff; font-size: 12px; font-weight: 800; }
+.gui-preview-input { width: 100%; padding: 11px; border: 1px solid #33394b; border-radius: 8px; background: #161a24; color: #94a3b8; font: 11px Consolas, monospace; text-align: left; transition: border-color .18s, color .18s; }
+.gui-preview-button { width: 100%; padding: 10px; border-radius: 8px; color: #fff; font-size: 12px; font-weight: 800; box-shadow: 0 6px 16px rgba(6, 182, 212, .18); transition: background .18s, box-shadow .18s; }
 .gui-preview-card small { color: #94a3b8; font-size: 9px; }
 .gui-preview-hint { color: var(--text-muted); font-size: 10px; line-height: 1.4; }
-@media (max-width: 520px) { .gui-customizer-fields { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .gui-customizer-fields { grid-template-columns: 1fr; } .gui-template-picker { padding: 9px; } .gui-template-grid { gap: 6px; } .gui-template-card { gap: 6px; padding: 7px; } .gui-template-swatch { flex-basis: 28px; width: 28px; height: 28px; } .gui-template-copybox strong { font-size: 9px; } }
 
 /* ---------- Get-Key page (key.html) multi-key cards ---------- */
 .keys-page-stack { max-width: 560px; width: 100%; }
