@@ -55,7 +55,11 @@ export default async function handler(req, res) {
         const vaultSnap = await vaultRef.get();
 
         if (!vaultSnap.exists) {
-            return json(res, 404, { ok: false, message: 'Vault not found.' });
+            return json(res, 200, {
+                ok: false,
+                code: 'vault_removed',
+                message: 'This vault has been removed or deleted. Contact the owner for support.'
+            });
         }
 
         const vault = vaultSnap.data();
@@ -129,7 +133,13 @@ export default async function handler(req, res) {
         if (uidStr) {
             const result = await db.runTransaction(async (tx) => {
                 const freshSnap = await tx.get(vaultRef);
-                if (!freshSnap.exists) return { ok: true, code: vault.code, remainingSeconds: initialRemainingSeconds, expiresAt: initialExpiresAt };
+                if (!freshSnap.exists) {
+                    return {
+                        ok: false,
+                        code: 'vault_removed',
+                        message: 'This vault has been removed or deleted. Contact the owner for support.'
+                    };
+                }
                 const freshData = freshSnap.data();
                 let freshKeys = null;
                 let idx = -1;
@@ -179,7 +189,8 @@ export default async function handler(req, res) {
             });
 
             if (!result.ok) {
-                return json(res, result.status || 403, { ok: false, message: result.message });
+                const status = result.code === 'vault_removed' ? 200 : (result.status || 403);
+                return json(res, status, { ok: false, code: result.code || null, message: result.message });
             }
             try { await recordExecution(vaultRef, id, vault.title, uidStr); } catch (e) {}
             return json(res, 200, { ok: true, code: result.code, remainingSeconds: result.remainingSeconds, expiresAt: result.expiresAt });

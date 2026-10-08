@@ -1,5 +1,6 @@
 import { db } from './_admin.js';
 import { recordExecution } from './_executionStats.js';
+import { buildRemovedVaultGui } from './_removedVaultGui.js';
 
 function isExecutorRequest(req) {
     const ua = (req.headers['user-agent'] || '').toLowerCase();
@@ -32,7 +33,9 @@ export default async function handler(req, res) {
         const docSnap = await db.collection("vaults").doc(id).get();
 
         if (!docSnap.exists) {
-            return res.status(404).send('Error: Vault ID not found in VoidedX Cloud');
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            return res.status(200).send(buildRemovedVaultGui());
         }
 
         const vaultData = docSnap.data();
@@ -96,6 +99,10 @@ if not decodeOk or type(result) ~= "table" then
 end
 
 if not result.ok then
+    if result.code == "vault_removed" then
+        ${buildRemovedVaultGui()}
+        return
+    end
     return error("[VoidedX] " .. tostring(result.message or "Access denied."), 0)
 end
 
@@ -618,6 +625,11 @@ local function attemptVerify(fromSavedKey)
     end
 
     if not result.ok then
+        if result.code == "vault_removed" then
+            screenGui:Destroy()
+            ${buildRemovedVaultGui()}
+            return
+        end
         local failureMessage = tostring(result.message or "Invalid key.")
         if fromSavedKey then
             local lowerMessage = string.lower(failureMessage)
