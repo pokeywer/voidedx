@@ -342,7 +342,8 @@ closeButton.Activated:Connect(function()
 end)
 
 local accentBar = Instance.new("Frame")
-accentBar.Size = UDim2.new(1, 0, 0, 3)
+accentBar.Position = UDim2.new(0, 18, 0, 1)
+accentBar.Size = UDim2.new(1, -36, 0, 3)
 accentBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 accentBar.BorderSizePixel = 0
 accentBar.ZIndex = 3
@@ -351,17 +352,9 @@ local accentCorner = Instance.new("UICorner")
 accentCorner.CornerRadius = UDim.new(1, 0)
 accentCorner.Parent = accentBar
 local accentGradient = Instance.new("UIGradient")
+accentGradient.Rotation = 0
 accentGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 accentGradient.Parent = accentBar
-TweenService:Create(accentGradient, TweenInfo.new(2.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Rotation = 35 }):Play()
-task.spawn(function()
-    while accentBar.Parent do
-        TweenService:Create(accentGradient, TweenInfo.new(2, Enum.EasingStyle.Sine), { Offset = Vector2.new(0.4, 0) }):Play()
-        task.wait(2)
-        TweenService:Create(accentGradient, TweenInfo.new(2, Enum.EasingStyle.Sine), { Offset = Vector2.new(-0.4, 0) }):Play()
-        task.wait(2)
-    end
-end)
 
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, 0, 0, 0)
