@@ -215,6 +215,7 @@ card.Size = UDim2.new(0.86, 0, 0, 0)
 card.AutomaticSize = Enum.AutomaticSize.Y
 card.BackgroundColor3 = COL_BG
 card.BorderSizePixel = 0
+card.ClipsDescendants = false
 card.ZIndex = 2
 card.Parent = screenGui
 
@@ -230,15 +231,62 @@ local cardStroke = Instance.new("UIStroke")
 cardStroke.Color = COL_BORDER
 cardStroke.Thickness = 1
 cardStroke.Parent = card
+local cardGradient = Instance.new("UIGradient")
+cardGradient.Rotation = 90
+cardGradient.Color = ColorSequence.new(COL_BG:Lerp(COL_CYAN, 0.07), COL_BG)
+cardGradient.Parent = card
 
 local uiScale = Instance.new("UIScale")
-uiScale.Scale = 0.82
+uiScale.Scale = 0.88
 uiScale.Parent = card
+card.Position = UDim2.new(0.5, 0, 0.5, 16)
 card.BackgroundTransparency = 1
 cardStroke.Transparency = 1
-TweenService:Create(uiScale, TweenInfo.new(0.4, EASE_BACK), { Scale = 1 }):Play()
-TweenService:Create(card, TweenInfo.new(0.25, EASE_OUT), { BackgroundTransparency = 0 }):Play()
-TweenService:Create(cardStroke, TweenInfo.new(0.3, EASE_OUT), { Transparency = 0 }):Play()
+TweenService:Create(uiScale, TweenInfo.new(0.48, EASE_BACK), { Scale = 1 }):Play()
+TweenService:Create(card, TweenInfo.new(0.42, EASE_OUT), {
+    BackgroundTransparency = 0,
+    Position = UDim2.new(0.5, 0, 0.5, 0)
+}):Play()
+TweenService:Create(cardStroke, TweenInfo.new(0.38, EASE_OUT), { Transparency = 0 }):Play()
+
+local closeButton = Instance.new("TextButton")
+closeButton.AnchorPoint = Vector2.new(1, 0)
+closeButton.Position = UDim2.new(1, -10, 0, 12)
+closeButton.Size = UDim2.new(0, 28, 0, 28)
+closeButton.BackgroundColor3 = COL_INPUT
+closeButton.BackgroundTransparency = 0.1
+closeButton.Text = "×"
+closeButton.TextColor3 = COL_MUTED
+closeButton.TextSize = 20
+closeButton.Font = Enum.Font.Gotham
+closeButton.AutoButtonColor = false
+closeButton.ZIndex = 5
+closeButton.Parent = card
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 9)
+closeCorner.Parent = closeButton
+local closeStroke = Instance.new("UIStroke")
+closeStroke.Color = COL_BORDER
+closeStroke.Transparency = 0.25
+closeStroke.Parent = closeButton
+local closeScale = Instance.new("UIScale")
+closeScale.Parent = closeButton
+closeButton.MouseEnter:Connect(function()
+    TweenService:Create(closeScale, TweenInfo.new(0.14, EASE_OUT), { Scale = 1.08 }):Play()
+    TweenService:Create(closeStroke, TweenInfo.new(0.14, EASE_OUT), { Color = COL_CYAN }):Play()
+end)
+closeButton.MouseLeave:Connect(function()
+    TweenService:Create(closeScale, TweenInfo.new(0.14, EASE_OUT), { Scale = 1 }):Play()
+    TweenService:Create(closeStroke, TweenInfo.new(0.14, EASE_OUT), { Color = COL_BORDER }):Play()
+end)
+closeButton.Activated:Connect(function()
+    TweenService:Create(uiScale, TweenInfo.new(0.18, EASE_OUT), { Scale = 0.94 }):Play()
+    TweenService:Create(card, TweenInfo.new(0.18, EASE_OUT), { BackgroundTransparency = 1 }):Play()
+    TweenService:Create(cardStroke, TweenInfo.new(0.16, EASE_OUT), { Transparency = 1 }):Play()
+    TweenService:Create(overlay, TweenInfo.new(0.2, EASE_OUT), { BackgroundTransparency = 1 }):Play()
+    task.wait(0.2)
+    if screenGui.Parent then screenGui:Destroy() end
+end)
 
 local accentBar = Instance.new("Frame")
 accentBar.Size = UDim2.new(1, 0, 0, 4)
@@ -251,6 +299,7 @@ accentCorner.Parent = accentBar
 local accentGradient = Instance.new("UIGradient")
 accentGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 accentGradient.Parent = accentBar
+TweenService:Create(accentGradient, TweenInfo.new(2.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Rotation = 35 }):Play()
 task.spawn(function()
     while accentBar.Parent do
         TweenService:Create(accentGradient, TweenInfo.new(2, Enum.EasingStyle.Sine), { Offset = Vector2.new(0.4, 0) }):Play()
@@ -263,28 +312,42 @@ end)
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, 0, 0, 0)
 content.AutomaticSize = Enum.AutomaticSize.Y
+content.Position = UDim2.new(0, 0, 0, 8)
 content.BackgroundTransparency = 1
 content.ZIndex = 2
 content.Parent = card
+TweenService:Create(content, TweenInfo.new(0.38, EASE_OUT, Enum.EasingDirection.Out, 0, false, 0.08), {
+    Position = UDim2.new(0, 0, 0, 0)
+}):Play()
 
 local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 26)
-padding.PaddingBottom = UDim.new(0, 22)
-padding.PaddingLeft = UDim.new(0, 22)
-padding.PaddingRight = UDim.new(0, 22)
+padding.PaddingTop = UDim.new(0, 24)
+padding.PaddingBottom = UDim.new(0, 20)
+padding.PaddingLeft = UDim.new(0, 18)
+padding.PaddingRight = UDim.new(0, 18)
 padding.Parent = content
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 12)
+layout.Padding = UDim.new(0, 11)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = content
 
+local eyebrow = Instance.new("TextLabel")
+eyebrow.Size = UDim2.new(1, 0, 0, 13)
+eyebrow.BackgroundTransparency = 1
+eyebrow.Text = "S E C U R E   K E Y   A C C E S S"
+eyebrow.TextColor3 = COL_CYAN
+eyebrow.TextSize = 9
+eyebrow.Font = Enum.Font.GothamBold
+eyebrow.LayoutOrder = 1
+eyebrow.Parent = content
+
 local badge = Instance.new("Frame")
-badge.Size = UDim2.new(0, 48, 0, 48)
+badge.Size = UDim2.new(0, 52, 0, 52)
 badge.BackgroundColor3 = COL_CYAN
 badge.BorderSizePixel = 0
-badge.LayoutOrder = 1
+badge.LayoutOrder = 2
 badge.Parent = content
 local badgeCorner = Instance.new("UICorner")
 badgeCorner.CornerRadius = UDim.new(0, 12)
@@ -293,6 +356,10 @@ local badgeGradient = Instance.new("UIGradient")
 badgeGradient.Rotation = 45
 badgeGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 badgeGradient.Parent = badge
+local badgeScale = Instance.new("UIScale")
+badgeScale.Parent = badge
+TweenService:Create(badgeScale, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.045 }):Play()
+TweenService:Create(badgeGradient, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Rotation = 135 }):Play()
 local badgeIcon = Instance.new("TextLabel")
 badgeIcon.Size = UDim2.fromScale(1, 1)
 badgeIcon.BackgroundTransparency = 1
@@ -308,7 +375,7 @@ title.Text = ${luaString(appearance.title)}
 title.TextColor3 = COL_TEXT
 title.Font = Enum.Font.GothamBold
 title.TextScaled = true
-title.LayoutOrder = 2
+title.LayoutOrder = 3
 title.Parent = content
 
 local subtitle = Instance.new("TextLabel")
@@ -318,7 +385,7 @@ subtitle.Text = ${luaString(appearance.subtitle)}
 subtitle.TextColor3 = COL_MUTED
 subtitle.Font = Enum.Font.Gotham
 subtitle.TextScaled = true
-subtitle.LayoutOrder = 3
+subtitle.LayoutOrder = 4
 subtitle.Parent = content
 
 local vaultNameLabel = Instance.new("TextLabel")
@@ -329,7 +396,7 @@ vaultNameLabel.TextColor3 = COL_CYAN
 vaultNameLabel.Font = Enum.Font.GothamSemibold
 vaultNameLabel.TextScaled = true
 vaultNameLabel.TextWrapped = true
-vaultNameLabel.LayoutOrder = 4
+vaultNameLabel.LayoutOrder = 5
 vaultNameLabel.Parent = content
 
 local inputBox = Instance.new("TextBox")
@@ -342,7 +409,7 @@ inputBox.Text = ""
 inputBox.ClearTextOnFocus = false
 inputBox.Font = Enum.Font.Code
 inputBox.TextScaled = true
-inputBox.LayoutOrder = 5
+inputBox.LayoutOrder = 6
 inputBox.Parent = content
 local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 9)
@@ -371,7 +438,7 @@ submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitBtn.Font = Enum.Font.GothamBold
 submitBtn.TextScaled = true
 submitBtn.AutoButtonColor = false
-submitBtn.LayoutOrder = 6
+submitBtn.LayoutOrder = 7
 submitBtn.Parent = content
 local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 9)
@@ -380,6 +447,9 @@ local btnGradient = Instance.new("UIGradient")
 btnGradient.Rotation = 90
 btnGradient.Color = ColorSequence.new(COL_CYAN, COL_ACCENT)
 btnGradient.Parent = submitBtn
+TweenService:Create(btnGradient, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+    Offset = Vector2.new(0, 0.28)
+}):Play()
 local btnScale = Instance.new("UIScale")
 btnScale.Parent = submitBtn
 
@@ -397,14 +467,16 @@ submitBtn.MouseButton1Up:Connect(function()
 end)
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 16)
+statusLabel.Size = UDim2.new(1, 0, 0, 0)
+statusLabel.AutomaticSize = Enum.AutomaticSize.Y
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = ""
 statusLabel.TextColor3 = COL_RED
 statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextScaled = true
+statusLabel.TextSize = 11
+statusLabel.TextWrapped = true
 statusLabel.TextTransparency = 1
-statusLabel.LayoutOrder = 7
+statusLabel.LayoutOrder = 8
 statusLabel.Parent = content
 
 local getKeyBtn = Instance.new("TextButton")
@@ -414,13 +486,32 @@ getKeyBtn.Text = "Need a key? Tap to copy the Get-Key link"
 getKeyBtn.TextColor3 = COL_MUTED
 getKeyBtn.Font = Enum.Font.Gotham
 getKeyBtn.TextScaled = true
-getKeyBtn.LayoutOrder = 8
+getKeyBtn.LayoutOrder = 9
 getKeyBtn.Parent = content
+
+local introTexts = { eyebrow, badgeIcon, title, subtitle, vaultNameLabel, inputBox, submitBtn, getKeyBtn }
+for _, textObject in ipairs(introTexts) do
+    textObject.TextTransparency = 1
+end
+task.spawn(function()
+    task.wait(0.12)
+    for _, textObject in ipairs(introTexts) do
+        if textObject.Parent then
+            TweenService:Create(textObject, TweenInfo.new(0.2, EASE_OUT), { TextTransparency = 0 }):Play()
+        end
+        task.wait(0.045)
+    end
+end)
 
 local function setStatus(text, color)
     statusLabel.Text = text
     statusLabel.TextColor3 = color
-    statusLabel.TextTransparency = 0
+    if text == "" then
+        statusLabel.TextTransparency = 1
+    else
+        statusLabel.TextTransparency = 1
+        TweenService:Create(statusLabel, TweenInfo.new(0.18, EASE_OUT), { TextTransparency = 0 }):Play()
+    end
 end
 
 local function formatKeyTime(seconds)
@@ -445,12 +536,15 @@ end
 local function showKeyTimer(remainingSeconds, fileSaved, expiresAtMs)
     screenGui.Name = "VoidedXKeyStatus"
 
+    local camera = workspace.CurrentCamera
+    local viewportWidth = camera and camera.ViewportSize.X or 360
+    local panelWidth = math.max(220, math.min(310, viewportWidth - 28))
     local panel = Instance.new("Frame")
     panel.AnchorPoint = Vector2.new(1, 1)
-    panel.Position = UDim2.new(1, -14, 1, -14)
-    panel.Size = UDim2.new(0, 310, 0, 78)
+    panel.Position = UDim2.new(1, -14, 1, 20)
+    panel.Size = UDim2.new(0, panelWidth, 0, 82)
     panel.BackgroundColor3 = COL_BG
-    panel.BackgroundTransparency = 0.08
+    panel.BackgroundTransparency = 1
     panel.BorderSizePixel = 0
     panel.Parent = screenGui
     local panelCorner = Instance.new("UICorner")
@@ -458,8 +552,17 @@ local function showKeyTimer(remainingSeconds, fileSaved, expiresAtMs)
     panelCorner.Parent = panel
     local panelStroke = Instance.new("UIStroke")
     panelStroke.Color = COL_CYAN
-    panelStroke.Transparency = 0.35
+    panelStroke.Transparency = 1
     panelStroke.Parent = panel
+    local panelScale = Instance.new("UIScale")
+    panelScale.Scale = 0.94
+    panelScale.Parent = panel
+    TweenService:Create(panel, TweenInfo.new(0.32, EASE_OUT), {
+        Position = UDim2.new(1, -14, 1, -14),
+        BackgroundTransparency = 0.08
+    }):Play()
+    TweenService:Create(panelStroke, TweenInfo.new(0.3, EASE_OUT), { Transparency = 0.35 }):Play()
+    TweenService:Create(panelScale, TweenInfo.new(0.36, EASE_BACK), { Scale = 1 }):Play()
 
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Position = UDim2.new(0, 11, 0, 6)
@@ -522,7 +625,16 @@ local function showKeyTimer(remainingSeconds, fileSaved, expiresAtMs)
     closeButton.TextSize = 18
     closeButton.Font = Enum.Font.GothamBold
     closeButton.Parent = panel
-    closeButton.MouseButton1Click:Connect(function() screenGui:Destroy() end)
+    closeButton.Activated:Connect(function()
+        TweenService:Create(panel, TweenInfo.new(0.18, EASE_OUT), {
+            Position = UDim2.new(1, -14, 1, 16),
+            BackgroundTransparency = 1
+        }):Play()
+        TweenService:Create(panelStroke, TweenInfo.new(0.16, EASE_OUT), { Transparency = 1 }):Play()
+        TweenService:Create(panelScale, TweenInfo.new(0.18, EASE_OUT), { Scale = 0.94 }):Play()
+        task.wait(0.19)
+        if screenGui.Parent then screenGui:Destroy() end
+    end)
 
     if type(remainingSeconds) ~= "number" then
         timerLabel.Text = "Key is permanent"
@@ -562,7 +674,7 @@ local function shakeCard()
     TweenService:Create(cardStroke, TweenInfo.new(0.4, EASE_OUT), { Color = COL_BORDER }):Play()
 end
 
-getKeyBtn.MouseButton1Click:Connect(function()
+getKeyBtn.Activated:Connect(function()
     local copied = pcall(function() setclipboard(${luaString(keyPageUrl)}) end)
     if copied then
         setStatus("Link copied! Paste it in your browser.", COL_GREEN)
@@ -610,7 +722,7 @@ local function attemptVerify(fromSavedKey)
 
     dotsRunning = false
     verifying = false
-    submitBtn.Text = "Submit"
+    submitBtn.Text = ${luaString(appearance.buttonLabel)}
 
     if not ok then
         setStatus("Couldn't reach the server. Try again.", COL_RED)
@@ -655,6 +767,7 @@ local function attemptVerify(fromSavedKey)
     setStatus(fileSaved and "Key verified · saved on this device." or "Key verified · local file saving unavailable.", COL_GREEN)
     submitBtn.Text = "Success"
     submitBtn.BackgroundColor3 = COL_GREEN
+    btnGradient.Color = ColorSequence.new(COL_GREEN, COL_CYAN)
     badgeGradient.Color = ColorSequence.new(COL_GREEN, COL_CYAN)
     TweenService:Create(uiScale, TweenInfo.new(0.15, EASE_OUT), { Scale = 1.04 }):Play()
     task.wait(0.15)
@@ -670,7 +783,7 @@ local function attemptVerify(fromSavedKey)
     loadstring(result.code)()
 end
 
-submitBtn.MouseButton1Click:Connect(attemptVerify)
+submitBtn.Activated:Connect(attemptVerify)
 inputBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then attemptVerify() end
 end)
