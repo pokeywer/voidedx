@@ -128,7 +128,7 @@
 
         function buildLoadstring(id, key) {
             const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
-            return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}${keyParam}"))()`;
+            return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}&format=raw${keyParam}"))()`;
         }
 
         async function fetchInfo(key) {

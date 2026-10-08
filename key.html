@@ -178,7 +178,7 @@
         }
 
         function buildLoadstring(id, key) {
-            return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}"))()`;
+            return `loadstring(game:HttpGet("${window.location.origin}/api/raw?id=${encodeURIComponent(id)}&format=raw&key=${encodeURIComponent(key)}"))()`;
         }
 
         const urlParams = new URLSearchParams(window.location.search);
