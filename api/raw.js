@@ -1,10 +1,12 @@
 import { db } from './_admin.js';
-import { recordExecution } from './_executionStats.js';
+import { recordExecution, recordActiveUser } from './_executionStats.js';
 import { buildRemovedVaultGui } from './_removedVaultGui.js';
 
 function isExecutorRequest(req) {
     const ua = (req.headers['user-agent'] || '').toLowerCase();
-    if (req.query.format === 'raw') return true;
+    if (req.query.format === 'raw' || req.query.trackOnly === '1') return true;
+    const accept = (req.headers.accept || '').toLowerCase();
+    if (accept && !accept.includes('text/html') && (accept.includes('*/*') || accept.includes('text/plain'))) return true;
     return ua.includes('roblox') ||
            ua.includes('synapse') ||
            ua.includes('executor') ||
@@ -17,10 +19,23 @@ function isExecutorRequest(req) {
 }
 
 export default async function handler(req, res) {
-    const { id, key, userId } = req.query;
+    const { id, key, userId, trackOnly } = req.query;
 
     if (!id) {
         return res.status(400).send('Error: Missing Vault ID');
+    }
+
+    if (trackOnly === '1') {
+        if (!userId || !/^\d{1,20}$/.test(String(userId))) {
+            return res.status(400).send('Error: Invalid player ID');
+        }
+        try {
+            await recordActiveUser(userId);
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            return res.status(204).end();
+        } catch (err) {
+            return res.status(500).send('Error recording active player');
+        }
     }
 
     // Real browser visitors get sent to the SECURED landing page instead of raw code.
@@ -55,7 +70,13 @@ export default async function handler(req, res) {
             if (typeof vaultData.code === 'string' && vaultData.code.trim()) {
                 try { await recordExecution(db.collection('vaults').doc(String(id)), id, vaultData.title, userId); } catch (e) {}
             }
-            return res.status(200).send(vaultData.code);
+            if (typeof vaultData.code !== 'string' || !vaultData.code.trim()) {
+                return res.status(200).send(vaultData.code);
+            }
+            const deliveredCode = userId
+                ? vaultData.code
+                : buildTrackedScript(id, getOrigin(req), vaultData.code);
+            return res.status(200).send(deliveredCode);
         }
 
         // Key-in-URL mode: fast-fail on an obviously missing key, otherwise hand off
@@ -110,8 +131,35 @@ loadstring(result.code)()
 `.trim();
 }
 
+function buildTrackedScript(id, origin, code) {
+    const trackUrl = `${origin}/api/raw?id=${encodeURIComponent(id)}&trackOnly=1&userId=`;
+    return `
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+if player then
+    task.spawn(function()
+        pcall(function()
+            game:HttpGet(${luaString(trackUrl)} .. tostring(player.UserId))
+        end)
+    end)
+end
+
+local scriptChunk, compileError = loadstring(${luaString(code)})
+if not scriptChunk then
+    error("[VoidedX] " .. tostring(compileError), 0)
+end
+return scriptChunk()
+`.trim();
+}
+
 function luaString(str) {
-    const escaped = String(str).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const escaped = String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\r/g, '\\r')
+        .replace(/\n/g, '\\n')
+        .replace(/\t/g, '\\t')
+        .replace(/\0/g, '\\000');
     return `"${escaped}"`;
 }
 

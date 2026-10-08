@@ -48,3 +48,26 @@ export async function recordExecution(vaultRef, vaultId, rawTitle, rawPlayerId =
     }
     await batch.commit();
 }
+
+// Lets a downloaded client wrapper report its Roblox ID without exposing it
+// in the public launcher URL. Only a server-side HMAC is stored.
+export async function recordActiveUser(rawPlayerId) {
+    const playerId = String(rawPlayerId || '').trim();
+    if (!/^\d{1,20}$/.test(playerId)) return false;
+
+    const hashSecret = [
+        process.env.ACTIVE_USER_HASH_SECRET,
+        process.env.ADMIN_SESSION_SECRET,
+        process.env.FIREBASE_SERVICE_ACCOUNT
+    ].find(secret => typeof secret === 'string' && Buffer.byteLength(secret) >= 32) || '';
+    if (!hashSecret) return false;
+
+    const now = new Date();
+    const dayKey = now.toISOString().slice(0, 10);
+    const playerHash = createHmac('sha256', hashSecret).update(playerId).digest('hex');
+    await db.collection('activeUsersDaily').doc(dayKey).collection('players').doc(playerHash).set(
+        { lastSeenAt: now.getTime() },
+        { merge: true }
+    );
+    return true;
+}

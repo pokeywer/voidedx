@@ -847,8 +847,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const keyParam = (!data.guiMode && data.requireKey && data.key) ? `&key=${encodeURIComponent(data.key)}` : '';
-        const rawUrl = `${window.location.origin}/api/raw?id=${id}&format=raw${keyParam}`;
-        lsOutput.value = `local vxPlayer=game:GetService("Players").LocalPlayer; loadstring(game:HttpGet("${rawUrl}&userId="..tostring(vxPlayer.UserId)))()`;
+        const rawUrl = `${window.location.origin}/api/raw?id=${id}${keyParam}`;
+        lsOutput.value = `loadstring(game:HttpGet("${rawUrl}"))()`;
         resultOverlay.classList.remove('hidden');
 
         if (data.requireKey) {
@@ -1263,8 +1263,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const primaryKey = existingKeyFields.keys[0] || (existingKeyFields.key ? { key: existingKeyFields.key } : null);
             const keyParam = (!existingKeyFields.guiMode && existingKeyFields.requireKey && primaryKey) ? `&key=${encodeURIComponent(primaryKey.key)}` : '';
-            const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}&format=raw${keyParam}`;
-            const loadstringCmd = `local vxPlayer=game:GetService("Players").LocalPlayer; loadstring(game:HttpGet("${rawUrl}&userId="..tostring(vxPlayer.UserId)))()`;
+            const rawUrl = `${window.location.origin}/api/raw?id=${vaultId}${keyParam}`;
+            const loadstringCmd = `loadstring(game:HttpGet("${rawUrl}"))()`;
 
             lsOutput.value = loadstringCmd;
             resultOverlay.classList.remove('hidden');
