@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Coin Shop // VoidedX</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="economy-page">
+    <main class="economy-shell">
+        <header class="economy-topbar">
+            <a class="brand-unit" href="/"><img src="logo.png" alt="" class="brand-icon-img"><span class="brand-titles"><span class="brand-name">VOIDEDX</span><span class="brand-tag">COIN SHOP</span></span></a>
+            <a href="/" class="btn-ghost economy-back"><i class="fa-solid fa-arrow-left"></i> Back to vault</a>
+        </header>
+
+        <section class="economy-intro">
+            <span class="economy-hero-icon"><i class="fa-solid fa-coins"></i></span>
+            <p class="admin-eyebrow">CREATOR REWARDS</p>
+            <h1>Coin Shop</h1>
+            <p>Spend execution coins on permanent creator perks for your account.</p>
+            <div class="economy-balance"><i class="fa-solid fa-coins"></i><strong id="shop-balance">—</strong><span>coins</span></div>
+        </section>
+
+        <section id="shop-status" class="economy-status hidden" role="status" aria-live="polite"></section>
+        <section id="shop-account" class="economy-card">
+            <div class="economy-section-heading"><div><p class="admin-eyebrow">YOUR ACCOUNT</p><h2>Sign in to shop</h2></div><span id="shop-signed-user" class="admin-state-pill hidden"></span></div>
+            <p class="admin-help">Coins and purchases are linked to your VoidedX account. Guest sessions cannot buy items.</p>
+            <div id="shop-auth-form" class="economy-auth-form">
+                <button id="shop-google-btn" class="google-auth-btn" type="button"><i class="fa-brands fa-google google-brand-icon"></i> Continue with Google</button>
+                <div class="auth-divider"><span>OR USE EMAIL</span></div>
+                <label class="panel-label" for="shop-email">EMAIL</label>
+                <input id="shop-email" class="input-field" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com">
+                <label class="panel-label" for="shop-password">PASSWORD</label>
+                <input id="shop-password" class="input-field" type="password" autocomplete="current-password" maxlength="200" placeholder="Your password">
+                <div class="economy-auth-actions"><button id="shop-login-btn" class="btn-primary" type="button"><i class="fa-solid fa-right-to-bracket"></i> Sign in</button><button id="shop-signup-btn" class="btn-ghost" type="button"><i class="fa-solid fa-user-plus"></i> Create account</button></div>
+            </div>
+            <div id="shop-signed-in" class="economy-signed-in hidden"><span id="shop-account-email"></span><button id="shop-signout-btn" class="btn-ghost" type="button">Sign out</button></div>
+        </section>
+
+        <section class="economy-shop-section">
+            <div class="economy-section-heading"><div><p class="admin-eyebrow">AVAILABLE PERKS</p><h2>Pick a reward</h2></div><span class="admin-state-pill">Permanent purchases</span></div>
+            <div id="shop-items" class="shop-items"><article class="economy-card shop-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading shop…</article></div>
+        </section>
+        <p class="economy-footnote"><i class="fa-solid fa-circle-info"></i> Earn one coin when a real visitor runs a vault, with a five-minute cooldown per visitor network and vault.</p>
+    </main>
+    <script type="module" src="shop.js"></script>
+</body>
+</html>

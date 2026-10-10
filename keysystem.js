@@ -35,6 +35,12 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+function countryFlagEmoji(value) {
+    const code = String(value || '').trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return '🌐';
+    return String.fromCodePoint(...[...code].map(letter => 127397 + letter.charCodeAt(0)));
+}
+
 function showToast(message, type = 'info', duration = 4000) {
     const container = document.getElementById('toast-container');
     const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info' };
@@ -792,14 +798,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     resetIpBtn.addEventListener('click', async () => {
-        const confirmed = await customConfirm({ title: 'Reset the bound IP?', message: 'The next person to use this key will lock it to their IP instead.', confirmLabel: 'Reset IP' });
+        const confirmed = await customConfirm({ title: 'Reset the bound network?', message: 'The next person to use this key will bind it to their network instead.', confirmLabel: 'Reset network' });
         if (!confirmed) return;
         try {
-            await updateDoc(doc(db, "vaults", vaultId), { boundIp: null });
-            showToast('Bound IP reset.', 'success');
+            await updateDoc(doc(db, "vaults", vaultId), {
+                boundIp: null,
+                boundIpHash: null,
+                boundIpCountry: null
+            });
+            showToast('Bound network reset.', 'success');
             loadVault();
         } catch (err) {
-            showToast('Failed to reset IP: ' + err.message, 'error');
+            showToast('Failed to reset network: ' + err.message, 'error');
         }
     });
 
@@ -855,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ksError.classList.remove('hidden');
                 return;
             }
-            const data = snap.data();
+            let data = snap.data();
 
             // Ownership gate: only the vault's owner (or anyone, for old pre-UID
             // "guest" vaults) may see or change its keys.
@@ -865,6 +875,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 ksErrorText.textContent = "Access denied — this vault belongs to a different account.";
                 ksError.classList.remove('hidden');
                 return;
+            }
+            if (data.uid === user.uid && typeof data.boundIp === 'string' && data.boundIp) {
+                try {
+                    const response = await fetch('/api/key-network-privacy', {
+                        method: 'POST',
+                        headers: {
+                            Authorization: 'Bearer ' + await user.getIdToken(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id: vaultId })
+                    });
+                    if (response.ok) {
+                        const refreshed = await getDoc(doc(db, 'vaults', vaultId));
+                        if (refreshed.exists()) data = refreshed.data();
+                    }
+                } catch {}
             }
             await loadLinkvertiseConfig();
             currentOwnerLegacy = data.uid === 'guest';
@@ -917,11 +943,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.ipLock) {
                 ipLockStatus.classList.remove('hidden');
-                if (data.boundIp) {
-                    ipLockStatusText.textContent = `Locked to IP: ${data.boundIp}`;
+                if (data.boundIpHash || data.boundIp) {
+                    ipLockStatusText.textContent = countryFlagEmoji(data.boundIpCountry) + ' Locked to this network';
                     resetIpBtn.classList.remove('hidden');
                 } else {
-                    ipLockStatusText.textContent = 'Not bound to any IP yet — the next person to use this key locks it in.';
+                    ipLockStatusText.textContent = 'Not bound yet — the next person to use this key will bind their network.';
                     resetIpBtn.classList.add('hidden');
                 }
             } else {
@@ -1003,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const existingSnap = await getDoc(doc(db, "vaults", vaultId));
             const existing = existingSnap.exists() ? existingSnap.data() : {};
-            const boundIp = ipLock ? (existing.boundIp || null) : null;
+            const clearNetworkBinding = !ipLock;
 
             // Preserve the live auto-generated public key entry as-is — it's
             // managed by Regenerate/Terminate, not rebuilt here.
@@ -1015,7 +1041,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 requireKey, guiMode, guiAppearance, keys: keysPayload, publicKeyConfig,
                 key: primaryKey ? primaryKey.key : '',
                 keyGeneratedAt: primaryKey ? primaryKey.keyGeneratedAt : null,
-                ipLock, boundIp,
+                ipLock,
+                ...(clearNetworkBinding ? { boundIp: null, boundIpHash: null, boundIpCountry: null } : {}),
                 ...(currentOwnerLegacy && auth.currentUser ? { uid: auth.currentUser.uid } : {})
             });
 

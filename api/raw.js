@@ -1,5 +1,5 @@
 import { db } from './_admin.js';
-import { recordExecution, recordActiveUser } from './_executionStats.js';
+import { getClientIp, getCountryCode, recordExecution, recordActiveUser } from './_executionStats.js';
 import { buildRemovedVaultGui } from './_removedVaultGui.js';
 
 function isExecutorRequest(req) {
@@ -68,7 +68,15 @@ export default async function handler(req, res) {
 
         if (!vaultData.requireKey) {
             if (typeof vaultData.code === 'string' && vaultData.code.trim()) {
-                try { await recordExecution(db.collection('vaults').doc(String(id)), id, vaultData.title, userId); } catch (e) {}
+                try {
+                    await recordExecution(
+                        db.collection('vaults').doc(String(id)),
+                        id,
+                        vaultData.title,
+                        userId,
+                        { ip: getClientIp(req), countryCode: getCountryCode(req) }
+                    );
+                } catch (e) {}
             }
             if (typeof vaultData.code !== 'string' || !vaultData.code.trim()) {
                 return res.status(200).send(vaultData.code);

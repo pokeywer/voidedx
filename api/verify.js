@@ -1,5 +1,5 @@
 import { db, FieldValue } from './_admin.js';
-import { recordExecution } from './_executionStats.js';
+import { getClientIp, getCountryCode, hashClientIp, recordExecution } from './_executionStats.js';
 
 function json(res, status, body) {
     res.setHeader('Content-Type', 'application/json');
@@ -37,12 +37,6 @@ function remainingKeySeconds(key) {
     return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
 }
 
-function getClientIp(req) {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) return forwarded.split(',')[0].trim();
-    return req.socket && req.socket.remoteAddress ? req.socket.remoteAddress : 'unknown';
-}
-
 export default async function handler(req, res) {
     const { id, key, userId, username } = req.query;
 
@@ -68,6 +62,9 @@ export default async function handler(req, res) {
             return json(res, 200, { ok: true, code: vault.code });
         }
 
+        const clientIp = getClientIp(req);
+        const clientIpHash = hashClientIp(clientIp);
+        const countryCode = getCountryCode(req);
         const uidStr = userId ? String(userId) : null;
 
         // Ban check — vault-wide, blocks a Roblox account from using ANY key here.
@@ -111,22 +108,46 @@ export default async function handler(req, res) {
 
         // IP lock — vault-wide, atomic so two IPs can't both "win" the bind.
         if (vault.ipLock) {
-            const clientIp = getClientIp(req);
+            if (!clientIpHash) {
+                return json(res, 503, { ok: false, message: 'Network privacy settings are temporarily unavailable.' });
+            }
             try {
                 const ipResult = await db.runTransaction(async (tx) => {
                     const freshSnap = await tx.get(vaultRef);
                     if (!freshSnap.exists) return { ok: true };
                     const freshData = freshSnap.data();
-                    if (!freshData.boundIp) {
-                        tx.update(vaultRef, { boundIp: clientIp });
+                    const legacyIp = typeof freshData.boundIp === 'string' ? freshData.boundIp : '';
+                    const legacyHash = legacyIp ? hashClientIp(legacyIp) : null;
+                    if (legacyIp && !legacyHash) return { ok: false, unavailable: true };
+
+                    const boundHash = freshData.boundIpHash || legacyHash;
+                    const updates = {};
+                    if (legacyIp) updates.boundIp = FieldValue.delete();
+                    if (!freshData.boundIpHash && legacyHash) updates.boundIpHash = legacyHash;
+
+                    if (!boundHash) {
+                        updates.boundIpHash = clientIpHash;
+                        if (countryCode) updates.boundIpCountry = countryCode;
+                        tx.update(vaultRef, updates);
                         return { ok: true };
                     }
-                    return { ok: freshData.boundIp === clientIp };
+
+                    const matches = boundHash === clientIpHash;
+                    if (matches && !freshData.boundIpCountry && countryCode) {
+                        updates.boundIpCountry = countryCode;
+                    }
+                    if (Object.keys(updates).length) tx.update(vaultRef, updates);
+                    return { ok: matches };
                 });
-                if (!ipResult.ok) {
-                    return json(res, 403, { ok: false, message: 'This key is locked to a different network/IP.' });
+                if (ipResult.unavailable) {
+                    return json(res, 503, { ok: false, message: 'Network privacy settings are temporarily unavailable.' });
                 }
-            } catch (e) {}
+                if (!ipResult.ok) {
+                    return json(res, 403, { ok: false, message: 'This key is locked to a different network.' });
+                }
+            } catch (e) {
+                return json(res, 503, { ok: false, message: 'Network privacy settings are temporarily unavailable.' });
+            }
         }
 
         // Per-key player limit, atomic so two people can't both slip past a full cap.
@@ -192,11 +213,11 @@ export default async function handler(req, res) {
                 const status = result.code === 'vault_removed' ? 200 : (result.status || 403);
                 return json(res, status, { ok: false, code: result.code || null, message: result.message });
             }
-            try { await recordExecution(vaultRef, id, vault.title, uidStr); } catch (e) {}
+            try { await recordExecution(vaultRef, id, vault.title, uidStr, { ip: clientIp, countryCode }); } catch (e) {}
             return json(res, 200, { ok: true, code: result.code, remainingSeconds: result.remainingSeconds, expiresAt: result.expiresAt });
         }
 
-        try { await recordExecution(vaultRef, id, vault.title, uidStr); } catch (e) {}
+        try { await recordExecution(vaultRef, id, vault.title, uidStr, { ip: clientIp, countryCode }); } catch (e) {}
         return json(res, 200, { ok: true, code: vault.code, remainingSeconds: initialRemainingSeconds, expiresAt: initialExpiresAt });
     } catch (err) {
         return json(res, 500, { ok: false, message: 'Server error: ' + err.message });

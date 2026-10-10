@@ -55,6 +55,33 @@
                 <article class="admin-stat-card"><i class="fa-solid fa-lightbulb"></i><span>Ideas submitted</span><strong id="admin-stat-ideas">—</strong></article>
             </div>
 
+            <section class="admin-card admin-gifts-card">
+                <div class="admin-section-heading">
+                    <div><p class="admin-eyebrow">CREATOR ECONOMY</p><h2><i class="fa-solid fa-gift"></i> Coin gifts</h2></div>
+                    <span id="admin-gifts-count" class="admin-state-pill">Loading…</span>
+                </div>
+                <p class="admin-help">Create a one-time gift link. The generated Gift UID is shown only after creation; send the link to the person who should receive the coins.</p>
+                <div class="admin-gift-form">
+                    <div class="admin-form-field">
+                        <label class="panel-label" for="admin-gift-coins">COINS (1–100,000)</label>
+                        <input id="admin-gift-coins" class="input-field" type="number" min="1" max="100000" step="1" value="100">
+                    </div>
+                    <div class="admin-form-field admin-gift-note-field">
+                        <label class="panel-label" for="admin-gift-note">OPTIONAL NOTE</label>
+                        <input id="admin-gift-note" class="input-field" type="text" maxlength="120" placeholder="For a community creator">
+                    </div>
+                    <button id="admin-gift-create-btn" class="btn-primary" type="button"><i class="fa-solid fa-plus"></i> Create coin gift</button>
+                </div>
+                <div id="admin-gift-created" class="admin-gift-created hidden" role="status">
+                    <strong>Gift created — copy the link now</strong>
+                    <label class="panel-label" for="admin-gift-uid">GENERATED GIFT UID</label>
+                    <input id="admin-gift-uid" class="input-field" readonly>
+                    <label class="panel-label" for="admin-gift-url">ONE-TIME CLAIM LINK</label>
+                    <div class="admin-gift-copy-row"><input id="admin-gift-url" class="input-field" readonly><button id="admin-gift-copy-btn" class="btn-ghost" type="button"><i class="fa-solid fa-copy"></i> Copy link</button></div>
+                </div>
+                <div id="admin-gifts-list" class="admin-gifts-list"><div class="info-box"><p>Loading gifts…</p></div></div>
+            </section>
+
             <div class="admin-content-grid">
                 <section class="admin-card admin-announcement-card">
                     <div class="admin-section-heading">

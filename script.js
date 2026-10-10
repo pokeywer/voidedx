@@ -24,7 +24,9 @@ const db = getFirestore(app);
 let currentUser = null;
 let isSignUpMode = false;
 const ZERO_EXECUTION_VAULT_TTL_MS = 10 * 60 * 60 * 1000;
-const MAX_USER_VAULTS = 5;
+const BASE_MAX_USER_VAULTS = 5;
+let maxUserVaults = BASE_MAX_USER_VAULTS;
+let creatorPerks = { extraVaultSlots: 0, goldTitles: false, creatorBadge: false };
 const vaultExpiryTimers = new Map();
 const vaultExpiryWarningIds = new Set();
 let vaultsLoadedForUid = null;
@@ -296,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const vaultFilter = document.getElementById('vault-filter');
     const vaultStatTotal = document.getElementById('vault-stat-total');
     const vaultStatExecutions = document.getElementById('vault-stat-executions');
+    const vaultStatCoins = document.getElementById('vault-stat-coins');
     const vaultStatProtected = document.getElementById('vault-stat-protected');
     const execCountBadge = document.getElementById('exec-count-badge');
     const execCountNum = document.getElementById('exec-count-num');
@@ -303,6 +306,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let hasUnsavedChanges = false;
     let cachedVaults = [];
+    let coinBalanceRequestId = 0;
+
+    function renderAccountBadge(user = currentUser) {
+        const badge = document.getElementById('user-display');
+        if (!badge) return;
+        badge.replaceChildren();
+        const signedIn = !!user && !user.isAnonymous && !!user.email;
+        const icon = document.createElement('i');
+        icon.className = signedIn ? 'fa-solid fa-user-check text-cyan' : 'fa-solid fa-user';
+        badge.append(icon, document.createTextNode(' ' + (signedIn ? user.email : 'Guest')));
+        if (signedIn && creatorPerks.creatorBadge) {
+            const title = document.createElement('span');
+            title.className = 'creator-badge';
+            title.textContent = ' ✦ Creator';
+            badge.appendChild(title);
+        }
+    }
+
+    async function loadCreatorCoins(user) {
+        const requestId = ++coinBalanceRequestId;
+        if (!vaultStatCoins) return;
+        if (!user) {
+            vaultStatCoins.textContent = '0';
+            creatorPerks = { extraVaultSlots: 0, goldTitles: false, creatorBadge: false };
+            maxUserVaults = BASE_MAX_USER_VAULTS;
+            renderAccountBadge(user);
+            updateVaultCount(cachedVaults.length);
+            renderVaultList();
+            return;
+        }
+
+        vaultStatCoins.textContent = '…';
+        try {
+            const idToken = await user.getIdToken();
+            const response = await fetch('/api/coins', {
+                headers: { Authorization: 'Bearer ' + idToken }
+            });
+            const data = await response.json();
+            if (requestId !== coinBalanceRequestId || currentUser?.uid !== user.uid) return;
+            if (!response.ok || !data.ok) throw new Error(data.message || 'Could not load coins.');
+            vaultStatCoins.textContent = Math.max(0, Number(data.coins) || 0).toLocaleString();
+            creatorPerks = data.entitlements || { extraVaultSlots: 0, goldTitles: false, creatorBadge: false };
+            maxUserVaults = BASE_MAX_USER_VAULTS + Math.max(0, Math.floor(Number(creatorPerks.extraVaultSlots) || 0));
+            renderAccountBadge(user);
+            updateVaultCount(cachedVaults.length);
+            renderVaultList();
+        } catch {
+            if (requestId === coinBalanceRequestId && currentUser?.uid === user.uid) {
+                vaultStatCoins.textContent = '—';
+            }
+        }
+    }
 
     function setEditorDirty(isDirty) {
         hasUnsavedChanges = !!isDirty;
@@ -347,7 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auth Elements
     const authBtn = document.getElementById('auth-btn');
-    const userDisplay = document.getElementById('user-display');
     const authModal = document.getElementById('auth-modal');
     const authHeading = document.getElementById('auth-heading');
     const authSubheading = document.getElementById('auth-subheading');
@@ -562,29 +616,37 @@ document.addEventListener('DOMContentLoaded', () => {
             resetEditor();
             vaultListContainer.innerHTML = '<div class="info-box"><p><i class="fa-solid fa-spinner fa-spin"></i> Loading vaults...</p></div>';
             updateVaultCount(0);
+            creatorPerks = { extraVaultSlots: 0, goldTitles: false, creatorBadge: false };
+            maxUserVaults = BASE_MAX_USER_VAULTS;
             lastUid = newUid;
         }
+        loadCreatorCoins(user);
+        renderAccountBadge(user);
         if (user && !user.isAnonymous) {
-            userDisplay.innerHTML = `<i class="fa-solid fa-user-check text-cyan"></i> ${user.email}`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-from-bracket"></i> Logout`;
             loadUserVaults();
         } else if (user && user.isAnonymous) {
             // Real Firebase Auth session, just without an email — this UID is what
             // proves ownership of vaults created while "not logged in".
-            userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
             authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
             loadUserVaults();
         } else {
             // No session at all yet — silently start one so this browser gets a
             // stable, unique UID instead of everyone sharing the literal "guest".
             signInAnonymously(auth).catch(() => {
-                userDisplay.innerHTML = `<i class="fa-solid fa-user"></i> Guest`;
+                renderAccountBadge(null);
                 authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
                 vaultListContainer.innerHTML = '<div class="info-box"><p>Log in to save and manage your script vaults cloud-wide.</p></div>';
                 updateVaultCount(0);
             });
         }
     });
+
+    window.setInterval(() => {
+        if (currentUser && document.visibilityState === 'visible') {
+            loadCreatorCoins(currentUser);
+        }
+    }, 60000);
 
     // ---------------- Vault list ----------------
 
@@ -648,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
             div.innerHTML = `
                 <span class="vault-item-main">
                     <span class="vault-item-icon">${escapeHtml(initial)}</span>
-                    <span class="vault-item-title">${escapeHtml(title)}</span>
+                    <span class="vault-item-title${creatorPerks.goldTitles ? ' gold' : ''}">${escapeHtml(title)}</span>
                 </span>
                 <span class="vault-item-badge"><i class="fa-solid fa-play"></i> ${execs.toLocaleString()}</span>
             `;
@@ -806,8 +868,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateVaultCount(count) {
         if (!vaultListCount) return;
-        vaultListCount.textContent = `${count}/${MAX_USER_VAULTS}`;
-        vaultListCount.title = `${count} of ${MAX_USER_VAULTS} saved vaults`;
+        vaultListCount.textContent = `${count}/${maxUserVaults}`;
+        vaultListCount.title = `${count} of ${maxUserVaults} saved vaults`;
         vaultListCount.classList.remove('hidden');
     }
 
@@ -1173,8 +1235,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Your saved scripts are still loading. Wait a moment, then try again.', 'info');
             return;
         }
-        if (!activeVaultId.value && cachedVaults.length >= MAX_USER_VAULTS) {
-            showToast('You can save up to 5 scripts. Delete one of your saved vaults before creating another.', 'warning', 8000);
+        if (!activeVaultId.value && cachedVaults.length >= maxUserVaults) {
+            showToast(`You can save up to ${maxUserVaults} scripts. Delete one of your saved vaults or buy an extra slot in the Coin Shop.`, 'warning', 8000);
             return;
         }
         const code = sourceCode.value;
@@ -1203,16 +1265,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let currentExecutions = 0;
+        let networkPrivacyMigrationFailed = false;
         let existingKeyFields = {
             requireKey: false, guiMode: false, guiAppearance: null, publicKeyConfig: null, keys: [], key: '', keyGeneratedAt: null,
-            ipLock: false, boundIp: null, bannedUsers: []
+            ipLock: false, boundIp: null, boundIpHash: null, boundIpCountry: null, bannedUsers: []
         };
 
         if (activeVaultId.value) {
             try {
                 const docSnap = await getDoc(doc(db, "vaults", vaultId));
                 if (docSnap.exists()) {
-                    const existing = docSnap.data();
+                    let existing = docSnap.data();
+                    if (existing.uid === currentUser.uid && typeof existing.boundIp === 'string' && existing.boundIp) {
+                        try {
+                            const response = await fetch('/api/key-network-privacy', {
+                                method: 'POST',
+                                headers: {
+                                    Authorization: 'Bearer ' + await currentUser.getIdToken(),
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ id: vaultId })
+                            });
+                            if (!response.ok) throw new Error('Privacy migration was rejected.');
+                            const refreshed = await getDoc(doc(db, 'vaults', vaultId));
+                            if (!refreshed.exists() || (typeof refreshed.data().boundIp === 'string' && refreshed.data().boundIp)) {
+                                throw new Error('Legacy network address is still present.');
+                            }
+                            existing = refreshed.data();
+                        } catch {
+                            networkPrivacyMigrationFailed = true;
+                        }
+                    }
                     currentExecutions = existing.executions || 0;
                     // Key system settings are managed on the separate Key System Manager
                     // page — saving the script here just carries them forward untouched.
@@ -1225,11 +1308,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         key: existing.key || '',
                         keyGeneratedAt: existing.keyGeneratedAt || null,
                         ipLock: !!existing.ipLock,
-                        boundIp: existing.boundIp || null,
+                        // Never carry a clear network address back to Firestore.
+                        boundIp: null,
+                        boundIpHash: existing.boundIpHash || null,
+                        boundIpCountry: existing.boundIpCountry || null,
                         bannedUsers: Array.isArray(existing.bannedUsers) ? existing.bannedUsers : []
                     };
                 }
             } catch (e) {}
+        }
+
+        if (networkPrivacyMigrationFailed) {
+            showToast('This older network lock could not be updated privately, so the vault was not saved. Try again in a moment.', 'error', 7000);
+            isSaving = false;
+            lockBtn.disabled = false;
+            lockBtn.innerHTML = originalBtnHtml;
+            return;
         }
 
         const payload = {
@@ -1325,8 +1419,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Your saved scripts are still loading. Wait a moment, then try again.', 'info');
             return;
         }
-        if (cachedVaults.length >= MAX_USER_VAULTS) {
-            showToast('You can keep up to 5 scripts. Delete one before recovering another vault.', 'warning', 8000);
+        if (cachedVaults.length >= maxUserVaults) {
+            showToast(`You can keep up to ${maxUserVaults} scripts. Delete one or buy an extra slot in the Coin Shop before recovering another vault.`, 'warning', 8000);
             return;
         }
         const vid = (window.prompt('Enter the ID of your old vault (looks like vx_abc12345):') || '').trim();

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <title>Redeem Coin Gift // VoidedX</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="economy-page">
+    <main class="economy-shell gift-shell">
+        <header class="economy-topbar">
+            <a class="brand-unit" href="/"><img src="logo.png" alt="" class="brand-icon-img"><span class="brand-titles"><span class="brand-name">VOIDEDX</span><span class="brand-tag">COIN GIFT</span></span></a>
+            <a href="/" class="btn-ghost economy-back"><i class="fa-solid fa-arrow-left"></i> Back to vault</a>
+        </header>
+        <section class="economy-intro gift-intro">
+            <span class="economy-hero-icon gift-hero-icon"><i class="fa-solid fa-gift"></i></span>
+            <p class="admin-eyebrow">A CREATOR SENT YOU A GIFT</p>
+            <h1>Redeem your coins</h1>
+            <p>Sign in to your VoidedX account, then claim this gift once.</p>
+        </section>
+        <section id="gift-status" class="economy-status hidden" role="status" aria-live="polite"></section>
+        <section class="economy-card gift-card">
+            <div class="economy-section-heading"><div><p class="admin-eyebrow">COIN GIFT</p><h2 id="gift-heading">Gift link ready</h2></div><span class="admin-state-pill">One use</span></div>
+            <p id="gift-account-message" class="admin-help">Sign in with your account to claim the coins.</p>
+            <div id="gift-auth-form" class="economy-auth-form">
+                <button id="gift-google-btn" class="google-auth-btn" type="button"><i class="fa-brands fa-google google-brand-icon"></i> Continue with Google</button>
+                <div class="auth-divider"><span>OR USE EMAIL</span></div>
+                <label class="panel-label" for="gift-email">EMAIL</label>
+                <input id="gift-email" class="input-field" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com">
+                <label class="panel-label" for="gift-password">PASSWORD</label>
+                <input id="gift-password" class="input-field" type="password" autocomplete="current-password" maxlength="200" placeholder="Your password">
+                <div class="economy-auth-actions"><button id="gift-login-btn" class="btn-primary" type="button"><i class="fa-solid fa-right-to-bracket"></i> Sign in</button><button id="gift-signup-btn" class="btn-ghost" type="button"><i class="fa-solid fa-user-plus"></i> Create account</button></div>
+            </div>
+            <div id="gift-signed-in" class="economy-signed-in hidden"><span id="gift-account-email"></span><button id="gift-signout-btn" class="btn-ghost" type="button">Sign out</button></div>
+            <button id="gift-claim-btn" class="btn-primary gift-claim-btn hidden" type="button"><i class="fa-solid fa-gift"></i> Claim coin gift</button>
+        </section>
+    </main>
+    <script type="module" src="gift.js"></script>
+</body>
+</html>

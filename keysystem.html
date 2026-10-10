@@ -224,18 +224,18 @@
                         <div class="panel-group">
                             <label class="panel-label">IP LOCK</label>
                             <label class="toggle-row">
-                                <span><i class="fa-solid fa-location-dot text-cyan"></i> Lock Key to First IP</span>
+                                  <span><i class="fa-solid fa-location-dot text-cyan"></i> Lock Key to First Network</span>
                                 <input type="checkbox" id="chk-ip-lock">
                                 <span class="switch"></span>
                             </label>
                             <div id="ip-lock-status" class="info-box hidden">
                                 <i class="fa-solid fa-circle-info text-cyan"></i>
-                                <p id="ip-lock-status-text">Not bound to any IP yet — the next person to use this key locks it in.</p>
+                                 <p id="ip-lock-status-text">Not bound yet — the next person to use this key will bind their network.</p>
                             </div>
-                            <button type="button" id="reset-ip-btn" class="btn-ghost hidden"><i class="fa-solid fa-eraser"></i> Reset Bound IP</button>
+                              <button type="button" id="reset-ip-btn" class="btn-ghost hidden"><i class="fa-solid fa-eraser"></i> Reset Bound Network</button>
                             <div class="info-box">
                                 <i class="fa-solid fa-triangle-exclamation text-red"></i>
-                                <p>People on shared/mobile networks can have changing IPs, which can lock out a legitimate user by accident — use Reset if that happens. Applies across all keys on this vault.</p>
+                                  <p>People on shared/mobile networks can have changing network addresses, which can lock out a legitimate user by accident — use Reset if that happens. Applies across all keys on this vault.</p>
                             </div>
                         </div>
 
