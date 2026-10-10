@@ -12,6 +12,7 @@
     <style>
         .leaderboard-shell { min-height: 100vh; display: flex; flex-direction: column; }
         .leaderboard-nav { display: flex; align-items: center; gap: 10px; }
+        .leaderboard-nav > a, .leaderboard-nav > button { width: auto; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; text-decoration: none; white-space: nowrap; }
         .leaderboard-main { width: min(1120px, 100%); margin: 0 auto; padding: clamp(20px, 5vw, 48px) clamp(14px, 4vw, 36px) 48px; }
         .leaderboard-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
         .leaderboard-eyebrow { display: inline-flex; align-items: center; gap: 7px; color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px; }
@@ -79,7 +80,7 @@
             .activity-stat-label { font-size: 9px; letter-spacing: .3px; }
             .activity-stat-value { font-size: 23px; }
             .activity-stat-detail { font-size: 9px; line-height: 1.4; }
-            .leaderboard-nav { gap: 6px; }
+            .leaderboard-nav { width: 100%; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
             .leaderboard-nav .btn-ghost, .leaderboard-nav .btn-accent { width: auto; padding: 8px 10px; font-size: 11px; white-space: nowrap; }
             .leaderboard-tabs { gap: 4px; padding: 8px; }
             .leaderboard-tab { flex: 1; padding: 9px 5px; font-size: 11px; white-space: nowrap; }
@@ -124,8 +125,9 @@
                 <div class="brand-titles"><span class="brand-name">VOIDEDX</span><span class="brand-tag">LEADERBOARD</span></div>
             </a>
             <nav class="leaderboard-nav" aria-label="Main navigation">
+                <a href="/shop.html" class="btn-ghost"><i class="fa-solid fa-coins"></i> Coin Shop</a>
                 <button type="button" id="refresh-board" class="btn-ghost leaderboard-refresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                <a href="/" class="btn-accent"><i class="fa-solid fa-house"></i> Home</a>
+                <a href="/" class="btn-accent"><i class="fa-solid fa-house"></i> Back to Website</a>
             </nav>
         </header>
 

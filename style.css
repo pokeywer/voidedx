@@ -79,6 +79,8 @@ textarea::-webkit-scrollbar { height: 10px; width: 10px; }
 .vault-stat-card strong { color: var(--cyan); font-size: 16px; line-height: 1.1; }
 .vault-stat-card.coins strong { color: #fbbf24; }
 .vault-stat-card span { color: var(--text-muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+.coin-shop-shortcut { min-height: 37px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(251,191,36,.32); border-radius: 7px; background: rgba(251,191,36,.07); color: #fbbf24; text-decoration: none; font-size: 11px; font-weight: 800; transition: background .15s ease, border-color .15s ease; }
+.coin-shop-shortcut:hover { background: rgba(251,191,36,.13); border-color: rgba(251,191,36,.6); }
 
 .info-box { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; gap: 10px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 
