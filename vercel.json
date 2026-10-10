@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/:endpoint",
+      "destination": "/api/router?endpoint=:endpoint"
+    }
+  ],
   "cleanUrls": true,
   "trailingSlash": false
 }
