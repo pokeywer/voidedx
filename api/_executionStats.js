@@ -2,8 +2,6 @@ import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
 import { db, FieldValue } from './_admin.js';
 
-const COIN_COOLDOWN_MS = 5 * 60 * 1000;
-
 function getActiveUserHashSecret() {
     return [
         process.env.ACTIVE_USER_HASH_SECRET,
@@ -53,41 +51,8 @@ export function getCountryCode(req) {
     return /^[A-Z]{2}$/.test(code) ? code : null;
 }
 
-async function awardCreatorCoin(vaultRef, rawIp, countryCode) {
-    const ipHash = hashClientIp(rawIp);
-    if (!ipHash) return false;
-
-    const now = Date.now();
-    const claimRef = vaultRef.collection('executionRewardClaims').doc(ipHash);
-    return db.runTransaction(async transaction => {
-        const [vaultSnap, claimSnap] = await Promise.all([
-            transaction.get(vaultRef),
-            transaction.get(claimRef)
-        ]);
-        if (!vaultSnap.exists) return false;
-
-        const ownerUid = String(vaultSnap.data().uid || '');
-        if (!ownerUid || ownerUid === 'guest') return false;
-
-        const lastRewardAt = claimSnap.exists ? Number(claimSnap.data().lastRewardAt) || 0 : 0;
-        if (lastRewardAt && now - lastRewardAt < COIN_COOLDOWN_MS) return false;
-
-        const balanceRef = db.collection('creatorBalances').doc(ownerUid);
-        transaction.set(claimRef, {
-            lastRewardAt: now,
-            ...(countryCode ? { countryCode } : {}),
-            updatedAt: now
-        }, { merge: true });
-        transaction.set(balanceRef, {
-            coins: FieldValue.increment(1),
-            updatedAt: now
-        }, { merge: true });
-        return true;
-    });
-}
-
 // Dates use UTC so all visitors see the same daily and monthly cutoffs.
-export async function recordExecution(vaultRef, vaultId, rawTitle, rawPlayerId = null, requestMeta = {}) {
+export async function recordExecution(vaultRef, vaultId, rawTitle, rawPlayerId = null) {
     const now = new Date();
     const dayKey = now.toISOString().slice(0, 10);
     const monthKey = dayKey.slice(0, 7);
@@ -128,10 +93,6 @@ export async function recordExecution(vaultRef, vaultId, rawTitle, rawPlayerId =
         );
     }
     await batch.commit();
-
-    // A vault owner earns one coin per IP every five minutes. Only a keyed hash
-    // of the address is stored, and it is scoped to this vault.
-    await awardCreatorCoin(vaultRef, requestMeta.ip, requestMeta.countryCode);
 }
 
 // Lets a downloaded client wrapper report its Roblox ID without exposing it

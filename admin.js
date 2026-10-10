@@ -6,8 +6,6 @@ const loginButton = document.getElementById('admin-login-btn');
 const loginError = document.getElementById('admin-login-error');
 const statusBox = document.getElementById('admin-status');
 const ideasList = document.getElementById('admin-ideas-list');
-const pendingScriptsList = document.getElementById('admin-script-pending-list');
-const reportedScriptsList = document.getElementById('admin-script-reported-list');
 
 async function requestJson(path, options = {}) {
     const response = await fetch(path, {
@@ -140,43 +138,6 @@ function renderIdeas(ideas) {
     });
 }
 
-function renderScriptReviews(items, container, reported = false) {
-    container.replaceChildren();
-    if (!items.length) {
-        const empty = document.createElement('div');
-        empty.className = 'info-box';
-        const copy = document.createElement('p');
-        copy.textContent = reported ? 'There are no reported public scripts.' : 'There are no scripts waiting for review.';
-        empty.appendChild(copy); container.appendChild(empty); return;
-    }
-    items.forEach(script => {
-        const card = document.createElement('article'); card.className = 'admin-script-review-item';
-        const heading = document.createElement('div'); heading.className = 'admin-script-review-heading';
-        const title = document.createElement('strong'); title.textContent = script.title;
-        const meta = document.createElement('span'); meta.textContent = `${script.category} · ${script.game} · by ${script.authorName}`;
-        heading.append(title, meta);
-        const description = document.createElement('p'); description.textContent = script.description || '(No description)';
-        const codeToggle = document.createElement('details'); codeToggle.className = 'admin-script-source';
-        const summary = document.createElement('summary'); summary.textContent = 'Review source code';
-        const code = document.createElement('pre'); code.textContent = script.code || '(No source code)';
-        codeToggle.append(summary, code);
-        const actionRow = document.createElement('div'); actionRow.className = 'admin-idea-actions';
-        const state = document.createElement('span'); state.className = 'admin-state-pill';
-        state.textContent = reported ? `${script.reports} report${script.reports === 1 ? '' : 's'}` : `Submitted ${formatDate(script.createdAt)}`;
-        actionRow.appendChild(state);
-        const buttons = document.createElement('div'); buttons.className = 'admin-script-review-actions';
-        if (!reported) {
-            const approve = document.createElement('button'); approve.type = 'button'; approve.className = 'btn-primary admin-script-review-button'; approve.dataset.scriptId = script.id; approve.dataset.nextStatus = 'approved'; approve.innerHTML = '<i class="fa-solid fa-check"></i> Approve';
-            const reject = document.createElement('button'); reject.type = 'button'; reject.className = 'btn-danger admin-script-review-button'; reject.dataset.scriptId = script.id; reject.dataset.nextStatus = 'rejected'; reject.innerHTML = '<i class="fa-solid fa-xmark"></i> Reject';
-            buttons.append(approve, reject);
-        } else {
-            const hide = document.createElement('button'); hide.type = 'button'; hide.className = 'btn-danger admin-script-review-button'; hide.dataset.scriptId = script.id; hide.dataset.nextStatus = 'hidden'; hide.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Hide from library';
-            buttons.appendChild(hide);
-        }
-        actionRow.appendChild(buttons); card.append(heading, description, codeToggle, actionRow); container.appendChild(card);
-    });
-}
-
 async function loadAnnouncement() {
     const data = await requestJson('/api/announcements');
     const announcement = data.announcement;
@@ -188,84 +149,24 @@ async function loadAnnouncement() {
     document.getElementById('announcement-link-label').value = announcement?.linkLabel || '';
 }
 
-function renderCoinGifts(gifts) {
-    const container = document.getElementById('admin-gifts-list');
-    const count = document.getElementById('admin-gifts-count');
-    container.replaceChildren();
-    count.textContent = gifts.length + ' recent';
-    if (!gifts.length) {
-        const empty = document.createElement('div');
-        empty.className = 'info-box';
-        const text = document.createElement('p');
-        text.textContent = 'No coin gifts have been created yet.';
-        empty.appendChild(text);
-        container.appendChild(empty);
-        return;
-    }
-    gifts.forEach(gift => {
-        const row = document.createElement('article');
-        row.className = 'admin-gift-row';
-        const copy = document.createElement('div');
-        copy.className = 'admin-gift-row-copy';
-        const title = document.createElement('strong');
-        title.textContent = Number(gift.coins).toLocaleString() + ' coin gift';
-        const note = document.createElement('span');
-        note.textContent = gift.note || 'No note';
-        const date = document.createElement('small');
-        date.textContent = gift.status === 'claimed'
-            ? 'Claimed ' + formatDate(gift.claimedAt)
-            : 'Created ' + formatDate(gift.createdAt);
-        copy.append(title, note, date);
-        const actions = document.createElement('div');
-        actions.className = 'admin-gift-row-actions';
-        const status = document.createElement('span');
-        status.className = 'admin-state-pill';
-        status.textContent = gift.status === 'open' ? 'Unclaimed' : gift.status === 'claimed' ? 'Claimed' : 'Revoked';
-        actions.appendChild(status);
-        if (gift.status === 'open') {
-            const revoke = document.createElement('button');
-            revoke.type = 'button';
-            revoke.className = 'btn-danger';
-            revoke.dataset.giftId = gift.id;
-            revoke.innerHTML = '<i class="fa-solid fa-ban"></i> Revoke';
-            actions.appendChild(revoke);
-        }
-        row.append(copy, actions);
-        container.appendChild(row);
-    });
-}
-
-async function loadCoinGifts() {
-    const data = await requestJson('/api/admin-gifts');
-    renderCoinGifts(data.gifts || []);
-}
-
 async function refreshDashboard() {
     setStatus('Refreshing site data…', 'info');
     try {
-        const [dashboard, scriptReviews] = await Promise.all([
+        const [dashboard] = await Promise.all([
             requestJson('/api/admin-dashboard'),
-            requestJson('/api/admin-scripts'),
-            loadAnnouncement(),
-            loadCoinGifts()
+            loadAnnouncement()
         ]);
         document.getElementById('admin-stat-vaults').textContent = Number(dashboard.stats.vaults || 0).toLocaleString();
         document.getElementById('admin-stat-executions').textContent = Number(dashboard.stats.executions || 0).toLocaleString();
         document.getElementById('admin-stat-ideas').textContent = Number(dashboard.stats.ideas || 0).toLocaleString();
         document.getElementById('admin-ideas-count').textContent = `${dashboard.ideas.length} recent`;
         renderIdeas(dashboard.ideas || []);
-        renderScriptReviews(scriptReviews.pending || [], pendingScriptsList);
-        renderScriptReviews(scriptReviews.reported || [], reportedScriptsList, true);
-        document.getElementById('admin-script-pending-count').textContent = String((scriptReviews.pending || []).length);
-        document.getElementById('admin-script-reported-count').textContent = String((scriptReviews.reported || []).length);
-        document.getElementById('admin-script-review-count').textContent = `${(scriptReviews.pending || []).length} pending · ${(scriptReviews.reported || []).length} reported`;
         statusBox.classList.add('hidden');
     } catch (error) {
         setStatus(error.message, 'error');
         if (/session expired/i.test(error.message)) setLoggedIn(false);
     }
 }
-
 loginButton.addEventListener('click', signIn);
 [usernameInput, passwordInput].forEach(input => input.addEventListener('keydown', event => {
     if (event.key === 'Enter') signIn();
@@ -317,52 +218,6 @@ document.getElementById('announcement-clear-btn').addEventListener('click', asyn
     }
 });
 
-document.getElementById('admin-gift-create-btn').addEventListener('click', async event => {
-    const button = event.currentTarget;
-    const coins = Number(document.getElementById('admin-gift-coins').value);
-    const note = document.getElementById('admin-gift-note').value.trim();
-    setLoading(button, true, 'CREATING…');
-    try {
-        const data = await requestJson('/api/admin-gifts', {
-            method: 'POST',
-            body: JSON.stringify({ action: 'create', coins, note })
-        });
-        document.getElementById('admin-gift-uid').value = data.giftUid;
-        document.getElementById('admin-gift-url').value = data.giftUrl;
-        document.getElementById('admin-gift-created').classList.remove('hidden');
-        document.getElementById('admin-gift-note').value = '';
-        setStatus('Coin gift created. Save or send the claim link; its UID cannot be recovered from the gift list.', 'success');
-        await loadCoinGifts();
-    } catch (error) {
-        setStatus(error.message, 'error');
-    } finally { setLoading(button, false); }
-});
-
-document.getElementById('admin-gift-copy-btn').addEventListener('click', async event => {
-    try {
-        await navigator.clipboard.writeText(document.getElementById('admin-gift-url').value);
-        setStatus('Gift claim link copied.', 'success');
-    } catch {
-        setStatus('Copy was blocked by the browser. Select and copy the claim link above.', 'error');
-    }
-});
-
-document.getElementById('admin-gifts-list').addEventListener('click', async event => {
-    const button = event.target.closest('button[data-gift-id]');
-    if (!button) return;
-    if (!window.confirm('Revoke this unclaimed gift? Its link will stop working.')) return;
-    setLoading(button, true, 'REVOKING…');
-    try {
-        await requestJson('/api/admin-gifts', {
-            method: 'POST',
-            body: JSON.stringify({ action: 'revoke', giftId: button.dataset.giftId })
-        });
-        setStatus('The unclaimed coin gift was revoked.', 'success');
-        await loadCoinGifts();
-    } catch (error) { setStatus(error.message, 'error'); }
-    finally { setLoading(button, false); }
-});
-
 ideasList.addEventListener('click', async event => {
     const button = event.target.closest('button[data-idea-id]');
     if (!button) return;
@@ -378,21 +233,6 @@ ideasList.addEventListener('click', async event => {
     } finally {
         setLoading(button, false);
     }
-});
-
-document.querySelector('.admin-script-review-card').addEventListener('click', async event => {
-    const button = event.target.closest('button[data-script-id]');
-    if (!button) return;
-    const status = button.dataset.nextStatus;
-    const actionLabel = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : 'hide';
-    if (!window.confirm(`Are you sure you want to ${actionLabel} “${button.closest('.admin-script-review-item').querySelector('strong').textContent}”?`)) return;
-    setLoading(button, true, 'SAVING…');
-    try {
-        await requestJson('/api/admin-scripts', { method: 'PATCH', body: JSON.stringify({ id: button.dataset.scriptId, status }) });
-        setStatus(`Script ${status === 'approved' ? 'approved and published' : status === 'rejected' ? 'rejected' : 'hidden from the public library'}.`, 'success');
-        await refreshDashboard();
-    } catch (error) { setStatus(error.message, 'error'); }
-    finally { setLoading(button, false); }
 });
 
 checkSession();
